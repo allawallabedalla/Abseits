@@ -1,0 +1,16 @@
+{
+  "name": "Abseits — unabhängige Unterkünfte",
+  "short_name": "Abseits",
+  "description": "Findet Pensionen, Gästehäuser & Ferienwohnungen abseits der großen Plattformen.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1f0ea",
+  "theme_color": "#33503a",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

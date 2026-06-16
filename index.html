@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Abseits — unabhängige Unterkünfte finden</title>
 
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#33503a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Abseits">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 
@@ -181,6 +191,12 @@
           <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>:
           Projekt anlegen → <b>Maps JavaScript API</b> und <b>Places API (New)</b> aktivieren → API-Key erstellen → Abrechnung aktivieren.
           Tipp: Key auf Referrer <code>http://localhost:8000/*</code> beschränken und Budget-Limit setzen. Ohne Key läuft nur OSM.
+        </p>
+
+        <h2>App installieren</h2>
+        <p class="hint">
+          Am iPhone in Safari öffnen → <b>Teilen-Symbol</b> → <b>„Zum Home-Bildschirm"</b>. Danach startet „Abseits" als eigenes App-Icon im Vollbild — ohne Browser-Leiste.
+          Funktioniert, sobald die Seite über <code>https</code> (z. B. GitHub Pages) oder <code>localhost</code> läuft.
         </p>
       </div>
     </div>
@@ -426,6 +442,11 @@
   document.querySelectorAll(".cat").forEach(el=>el.addEventListener("change",()=>{if(results.length)render();}));
   [useGoogle,useOsm].forEach(el=>el.addEventListener("change",()=>{if(results.length)fetchArea();}));
 })();
+
+// PWA: Service-Worker registrieren (nur über https oder localhost aktiv)
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
 </script>
 </body>
 </html>
