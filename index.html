@@ -163,6 +163,14 @@
         <label class="switch"><span class="lab">Airbnb / Booking ausblenden<small>Plattform-Links entfernen</small></span><input type="checkbox" id="hidePlatform" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Ketten ausblenden<small>B&amp;B, Ibis, Motel One …</small></span><input type="checkbox" id="hideChains" checked><span class="ui"></span></label>
 
+        <h2>Unterkunftstyp</h2>
+        <label class="switch"><span class="lab">Pension / Gästehaus / B&amp;B</span><input type="checkbox" class="cat" data-cat="pension" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Ferienwohnung / -haus</span><input type="checkbox" class="cat" data-cat="fewo" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Hotel / Motel</span><input type="checkbox" class="cat" data-cat="hotel" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Hostel</span><input type="checkbox" class="cat" data-cat="hostel" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Berghütte</span><input type="checkbox" class="cat" data-cat="huette" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Sonstige / unklar</span><input type="checkbox" class="cat" data-cat="sonstige" checked><span class="ui"></span></label>
+
         <h2>Google-API-Key</h2>
         <div class="keyrow">
           <input id="key" type="password" placeholder="Key — nur lokal gespeichert" autocomplete="off">
@@ -194,6 +202,14 @@
   };
   const PLATFORM=/(airbnb\.|booking\.com|expedia\.|hrs\.|trivago\.|fewo-direkt|vrbo\.)/i;
   const CHAIN=/(b\s?&\s?b hotel|hotel-bb\.|\bibis\b|mercure|novotel|sofitel|accor|motel one|\ba\s?&\s?o\b|premier inn|holiday inn|best western|leonardo hotel|nh hotel|\bramada\b|mövenpick|movenpick|hilton|marriott|hampton|intercity\s?hotel|h\+ hotel|h-hotels|dorint|maritim|steigenberger|\bachat\b|ghotel|prizeotel|super 8|meininger)/i;
+  // Roh-Typen -> Filterkategorien
+  const CAT={
+    guest_house:"pension",bed_and_breakfast:"pension",private_guest_room:"pension",inn:"pension",
+    hotel:"hotel",motel:"hotel",
+    apartment:"fewo",chalet:"fewo",cottage:"fewo",farmstay:"fewo",
+    hostel:"hostel",alpine_hut:"huette"
+  };
+  const catOf=t=>CAT[t]||"sonstige";
 
   const map=L.map("map",{scrollWheelZoom:true,zoomControl:true}).setView([50.55,9.67],11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
@@ -244,7 +260,7 @@
       const t=el.tags||{},lat=el.lat??el.center?.lat,lon=el.lon??el.center?.lon;
       if(lat==null||lon==null) return null;
       const website=t.website||t["contact:website"]||t.url||"";
-      return {name:t.name||"Ohne Namen",kind:LABELS[t.tourism]||t.tourism,lat,lon,website,
+      return {name:t.name||"Ohne Namen",kind:LABELS[t.tourism]||t.tourism,cat:catOf(t.tourism),lat,lon,website,
         phone:t.phone||t["contact:phone"]||t["contact:mobile"]||"",
         addr:[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")+(t["addr:city"]?", "+t["addr:city"]:""),source:"osm"};
     }).filter(Boolean);
@@ -274,7 +290,7 @@
       const loc=p.location, lat=typeof loc?.lat==="function"?loc.lat():loc?.lat, lon=typeof loc?.lng==="function"?loc.lng():loc?.lng;
       if(lat==null||lon==null) return null;
       const type=p.primaryType||(p.types&&p.types[0])||"lodging";
-      return {name:p.displayName||"Ohne Namen",kind:LABELS[type]||"Unterkunft",lat,lon,
+      return {name:p.displayName||"Ohne Namen",kind:LABELS[type]||"Unterkunft",cat:catOf(type),lat,lon,
         website:p.websiteURI||"",phone:p.nationalPhoneNumber||"",addr:p.formattedAddress||"",source:"google"};
     }).filter(Boolean);
   }
@@ -319,11 +335,18 @@
     busy=false; goBtn.disabled=hereBtn.disabled=false;
   }
 
+  function activeCats(){
+    const set=new Set();
+    document.querySelectorAll(".cat").forEach(c=>{ if(c.checked) set.add(c.dataset.cat); });
+    return set;
+  }
   function visible(){
+    const cats=activeCats();
     return results.filter(r=>{
       if(hidePlatform.checked&&r.isPlatform) return false;
       if(hideChains.checked&&r.isChain) return false;
       if(onlyContact.checked&&!r.website&&!r.phone) return false;
+      if(!cats.has(r.cat||"sonstige")) return false;
       return true;
     }).sort((a,b)=>{
       const rank=x=>x.website&&!x.isPlatform?0:(x.phone?1:2);
@@ -400,6 +423,7 @@
   qEl.addEventListener("keydown",e=>{if(e.key==="Enter")doSearch();});
   hereBtn.addEventListener("click",()=>{ setView("list"); fetchArea(); });
   [onlyContact,hidePlatform,hideChains].forEach(el=>el.addEventListener("change",()=>{if(results.length)render();}));
+  document.querySelectorAll(".cat").forEach(el=>el.addEventListener("change",()=>{if(results.length)render();}));
   [useGoogle,useOsm].forEach(el=>el.addEventListener("change",()=>{if(results.length)fetchArea();}));
 })();
 </script>
