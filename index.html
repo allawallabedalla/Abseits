@@ -97,7 +97,10 @@
   .actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:8px}
   .actions .dist{font-size:13px;color:var(--muted);font-weight:500}
   .actions a{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:500;padding:3px 0}
+  .actions .copybtn{display:inline-flex;align-items:center;gap:5px;font-family:inherit;font-size:14px;font-weight:500;color:var(--pine);background:none;border:0;padding:3px 0;cursor:pointer}
   .actions svg{width:15px;height:15px}
+  .copybtn{display:inline-flex;align-items:center;gap:5px;font:inherit;font-size:14px;font-weight:500;color:var(--pine);background:none;border:0;padding:3px 0;cursor:pointer}
+  .copybtn svg{width:15px;height:15px}
 
   /* ---- Filter-Ansicht ---- */
   .panel{padding:8px 16px calc(24px + var(--safe-b))}
@@ -242,6 +245,11 @@
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
   const cluster=L.markerClusterGroup({maxClusterRadius:50,showCoverageOnHover:false});
   map.addLayer(cluster);
+  map.on("popupopen",e=>{
+    const el=e.popup.getElement(); if(!el) return;
+    const cp=el.querySelector(".copybtn");
+    if(cp&&!cp.dataset.wired){ cp.dataset.wired="1"; cp.addEventListener("click",()=>copyCoords(cp.dataset.lat,cp.dataset.lon,cp)); }
+  });
 
   const $=id=>document.getElementById(id);
   const appEl=$("app"), listEl=$("list"), qEl=$("q"), goBtn=$("go"), hereBtn=$("here"), nearBtn=$("near");
@@ -271,7 +279,22 @@
     return isApple ? "https://maps.apple.com/?daddr="+lat+","+lon+"&dirflg=d"
                    : "https://www.google.com/maps/dir/?api=1&destination="+lat+","+lon;
   }
-  function komootUrl(lat,lon){ return "https://www.komoot.com/plan/@"+lat+","+lon+",15z"; }
+  function copyCoords(lat,lon,btn){
+    const text=Number(lat).toFixed(6)+", "+Number(lon).toFixed(6); // Komoot-tauglich: dezimal, Punkt
+    const original=btn.innerHTML;
+    const done=()=>{ btn.textContent="Kopiert ✓"; setTimeout(()=>{ btn.innerHTML=original; },1500); };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
+    } else fallbackCopy(text,done);
+  }
+  function fallbackCopy(text,done){
+    try{
+      const ta=document.createElement("textarea");
+      ta.value=text; ta.setAttribute("readonly",""); ta.style.position="absolute"; ta.style.left="-9999px";
+      document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta); done();
+    }catch(e){ window.prompt("Koordinaten kopieren:",text); }
+  }
 
   // ---- Geocoding ----
   async function geocode(q){
@@ -424,10 +447,11 @@
 
       const pinSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
       const phoneSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.1-1.1a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7A2 2 0 0 1 22 16.9z"/></svg>';
+      const copySvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
       const acts=[];
       if(origin&&it.dist!=null) acts.push('<span class="dist">'+fmtDist(it.dist)+'</span>');
       acts.push('<a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+pinSvg+'Karten</a>');
-      acts.push('<a href="'+komootUrl(it.lat,it.lon)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Komoot</a>');
+      acts.push('<button type="button" class="copybtn">'+copySvg+'Koordinaten</button>');
       if(it.website&&!it.isPlatform) acts.push('<a href="'+esc(it.website)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>');
       if(it.phone) acts.push('<a href="tel:'+esc(it.phone.replace(/\s/g,""))+'" onclick="event.stopPropagation()">'+phoneSvg+'Anrufen</a>');
 
@@ -438,6 +462,8 @@
         '<div class="actions">'+acts.join("")+'</div>';
       card.addEventListener("click",()=>focusItem(id));
       card.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); focusItem(id); } });
+      const cp=card.querySelector(".copybtn");
+      if(cp) cp.addEventListener("click",e=>{ e.stopPropagation(); copyCoords(it.lat,it.lon,cp); });
       listEl.appendChild(card);
     });
   }
@@ -447,7 +473,8 @@
     if(it.addr) h+='<div style="font-size:13px;margin-top:4px">'+esc(it.addr)+'</div>';
     if(it.website&&!it.isPlatform) h+='<div style="margin-top:6px"><a href="'+esc(it.website)+'" target="_blank" rel="noopener">Website</a></div>';
     if(it.phone) h+='<div style="font-size:13px;margin-top:4px"><a href="tel:'+esc(it.phone.replace(/\s/g,""))+'">'+esc(it.phone)+'</a></div>';
-    h+='<div style="font-size:13px;margin-top:6px">Route: <a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener">Karten</a> · <a href="'+komootUrl(it.lat,it.lon)+'" target="_blank" rel="noopener">Komoot</a></div>';
+    h+='<div style="font-size:13px;margin-top:6px">Route: <a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener">Karten</a></div>';
+    h+='<div style="margin-top:6px"><button type="button" class="copybtn" data-lat="'+it.lat+'" data-lon="'+it.lon+'">Koordinaten kopieren</button></div>';
     return h;
   }
 
