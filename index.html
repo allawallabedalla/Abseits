@@ -192,6 +192,7 @@
         <label class="switch"><span class="lab">Hotel / Motel</span><input type="checkbox" class="cat" data-cat="hotel" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Hostel</span><input type="checkbox" class="cat" data-cat="hostel" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Berghütte</span><input type="checkbox" class="cat" data-cat="huette" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Camping &amp; Hütten<small>Campingplätze, Stellplätze, Wildnis-/Schutzhütten</small></span><input type="checkbox" class="cat" data-cat="camping" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Sonstige / unklar</span><input type="checkbox" class="cat" data-cat="sonstige" checked><span class="ui"></span></label>
 
         <h2>Google-API-Key</h2>
@@ -223,12 +224,14 @@
 (function(){
   "use strict";
 
-  const OSM_TYPES=["guest_house","hotel","hostel","chalet","apartment","motel","bed_and_breakfast","alpine_hut"];
-  const G_TYPES=["guest_house","bed_and_breakfast","inn","cottage","farmstay","private_guest_room","lodging","hostel","motel","hotel"];
+  const OSM_TYPES=["guest_house","hotel","hostel","chalet","apartment","motel","bed_and_breakfast","alpine_hut","camp_site","caravan_site","wilderness_hut","camp_pitch"];
+  const G_TYPES=["guest_house","bed_and_breakfast","inn","cottage","farmstay","private_guest_room","lodging","hostel","motel","hotel","campground","rv_park","camping_cabin"];
   const LABELS={
     guest_house:"Pension / Gästehaus",hotel:"Hotel",hostel:"Hostel",chalet:"Ferienhaus / Chalet",
     apartment:"Ferienwohnung",motel:"Motel",bed_and_breakfast:"B&B",alpine_hut:"Berghütte",
-    inn:"Gasthof",cottage:"Ferienhaus",farmstay:"Bauernhof / Urlaub am Hof",private_guest_room:"Privatzimmer",lodging:"Unterkunft"
+    inn:"Gasthof",cottage:"Ferienhaus",farmstay:"Bauernhof / Urlaub am Hof",private_guest_room:"Privatzimmer",lodging:"Unterkunft",
+    camp_site:"Campingplatz",caravan_site:"Wohnmobilstellplatz",wilderness_hut:"Wildnishütte",camp_pitch:"Stellplatz",
+    shelter:"Schutzhütte / Unterstand",campground:"Campingplatz",rv_park:"Wohnmobilstellplatz",camping_cabin:"Campinghütte"
   };
   const PLATFORM=/(airbnb\.|booking\.com|expedia\.|hrs\.|trivago\.|fewo-direkt|vrbo\.)/i;
   const CHAIN=/(b\s?&\s?b hotel|hotel-bb\.|\bibis\b|mercure|novotel|sofitel|accor|motel one|\ba\s?&\s?o\b|premier inn|holiday inn|best western|leonardo hotel|nh hotel|\bramada\b|mövenpick|movenpick|hilton|marriott|hampton|intercity\s?hotel|h\+ hotel|h-hotels|dorint|maritim|steigenberger|\bachat\b|ghotel|prizeotel|super 8|meininger)/i;
@@ -237,7 +240,9 @@
     guest_house:"pension",bed_and_breakfast:"pension",private_guest_room:"pension",inn:"pension",
     hotel:"hotel",motel:"hotel",
     apartment:"fewo",chalet:"fewo",cottage:"fewo",farmstay:"fewo",
-    hostel:"hostel",alpine_hut:"huette"
+    hostel:"hostel",alpine_hut:"huette",
+    camp_site:"camping",caravan_site:"camping",wilderness_hut:"camping",camp_pitch:"camping",shelter:"camping",
+    campground:"camping",rv_park:"camping",camping_cabin:"camping"
   };
   const catOf=t=>CAT[t]||"sonstige";
 
@@ -308,8 +313,11 @@
   // ---- OSM (Overpass, CORS-tauglich, Retry bei 504) ----
   async function fetchOsm(b){
     const s=b.getSouth(),w=b.getWest(),n=b.getNorth(),e=b.getEast();
-    const rx="^("+OSM_TYPES.join("|")+")$", bbox=`(${s},${w},${n},${e})`;
-    const query=`[out:json][timeout:25];(node["tourism"~"${rx}"]${bbox};way["tourism"~"${rx}"]${bbox};);out center tags 200;`;
+    const rx="^("+OSM_TYPES.join("|")+")$", shx="^(basic_hut|lean_to|rock_shelter)$", bbox=`(${s},${w},${n},${e})`;
+    const query=`[out:json][timeout:25];(`+
+      `node["tourism"~"${rx}"]${bbox};way["tourism"~"${rx}"]${bbox};`+
+      `node["amenity"="shelter"]["shelter_type"~"${shx}"]${bbox};way["amenity"="shelter"]["shelter_type"~"${shx}"]${bbox};`+
+      `);out center tags 250;`;
     let d=null;
     for(let a=0;a<2;a++){
       const r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(query)});
@@ -320,8 +328,9 @@
     return (d.elements||[]).map(el=>{
       const t=el.tags||{},lat=el.lat??el.center?.lat,lon=el.lon??el.center?.lon;
       if(lat==null||lon==null) return null;
+      const type=t.tourism||(t.amenity==="shelter"?"shelter":"");
       const website=t.website||t["contact:website"]||t.url||"";
-      return {name:t.name||"Ohne Namen",kind:LABELS[t.tourism]||t.tourism,cat:catOf(t.tourism),lat,lon,website,
+      return {name:t.name||LABELS[type]||"Ohne Namen",kind:LABELS[type]||type,cat:catOf(type),lat,lon,website,
         phone:t.phone||t["contact:phone"]||t["contact:mobile"]||"",
         addr:[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")+(t["addr:city"]?", "+t["addr:city"]:""),source:"osm"};
     }).filter(Boolean);
