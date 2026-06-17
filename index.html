@@ -17,10 +17,12 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
   :root{
@@ -31,14 +33,14 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;font-family:"Inter",system-ui,sans-serif;color:var(--ink);background:var(--paper);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+  body{margin:0;font-family:"Poppins",system-ui,sans-serif;color:var(--ink);background:var(--paper);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
   button,input{font:inherit;color:inherit}
 
   .app{display:flex;flex-direction:column;height:100dvh}
 
   /* ---- Kopf + Suche ---- */
   header{padding:calc(12px + var(--safe-t)) 16px 10px;border-bottom:1px solid var(--line)}
-  .brand{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:21px;letter-spacing:-.02em}
+  .brand{font-family:"Poppins",sans-serif;font-weight:700;font-size:21px;letter-spacing:-.02em}
   .brand .dot{color:var(--pine)}
   .tag{display:none;color:var(--muted);font-size:13px;margin-left:10px}
 
@@ -47,6 +49,7 @@
   .searchbar input:focus{outline:2px solid var(--focus);outline-offset:1px;border-color:transparent}
   .btn{cursor:pointer;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);padding:0 18px;min-height:48px;font-weight:600;white-space:nowrap}
   .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line);font-weight:500}
+  .btn.iconbtn{padding:0;width:48px;display:flex;align-items:center;justify-content:center;color:var(--pine)}
   .btn:active{transform:scale(.98)}
   .btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
   .btn:disabled{opacity:.5}
@@ -79,7 +82,7 @@
   .item{display:block;width:100%;text-align:left;padding:14px 16px;border:0;border-bottom:1px solid var(--line);background:transparent;cursor:pointer;color:inherit}
   .item:active{background:var(--card)}
   .item.active{background:var(--card);box-shadow:inset 3px 0 0 var(--pine)}
-  .item h3{margin:0 0 3px;font-family:"Space Grotesk",sans-serif;font-size:16px;font-weight:600;line-height:1.25}
+  .item h3{margin:0 0 3px;font-family:"Poppins",sans-serif;font-size:16px;font-weight:600;line-height:1.25}
   .kind{color:var(--muted);font-size:13px;margin-bottom:8px}
   .badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
   .badge{font-size:12px;padding:3px 9px;border-radius:20px;border:1px solid var(--line);white-space:nowrap}
@@ -91,10 +94,14 @@
   .badge.g{border-color:var(--gbl);color:var(--gbl)}
   .item a{color:var(--pine);text-decoration:none;font-size:14px;word-break:break-all}
   .meta{font-size:14px;color:var(--muted)}
+  .actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:8px}
+  .actions .dist{font-size:13px;color:var(--muted);font-weight:500}
+  .actions a{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:500;padding:3px 0}
+  .actions svg{width:15px;height:15px}
 
   /* ---- Filter-Ansicht ---- */
   .panel{padding:8px 16px calc(24px + var(--safe-b))}
-  .panel h2{font-family:"Space Grotesk",sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--slate);margin:22px 0 4px;font-weight:600}
+  .panel h2{font-family:"Poppins",sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--slate);margin:22px 0 4px;font-weight:600}
   .switch{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:52px;cursor:pointer;border-bottom:1px solid var(--line)}
   .switch .lab{display:flex;flex-direction:column}
   .switch .lab small{color:var(--muted);font-size:12.5px}
@@ -112,8 +119,8 @@
   .hint a{color:var(--pine)}
   .hint code{background:var(--card);padding:1px 5px;border-radius:5px;font-size:12px}
 
-  .leaflet-popup-content{font-family:"Inter",sans-serif;margin:12px 14px;line-height:1.45}
-  .leaflet-popup-content h3{margin:0 0 4px;font-family:"Space Grotesk",sans-serif;font-size:15px}
+  .leaflet-popup-content{font-family:"Poppins",sans-serif;margin:12px 14px;line-height:1.45}
+  .leaflet-popup-content h3{margin:0 0 4px;font-family:"Poppins",sans-serif;font-size:15px}
   .leaflet-popup-content a{color:var(--pine)}
 
   /* ---- Desktop: Liste + Karte nebeneinander ---- */
@@ -138,6 +145,9 @@
 
   <div class="searchbar">
     <input id="q" type="text" placeholder="Ort, z. B. Gersfeld, Rhön" aria-label="Ort suchen" enterkeyhint="search">
+    <button id="near" class="btn ghost iconbtn" aria-label="In meiner Nähe suchen" title="In meiner Nähe suchen">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+    </button>
     <button id="go" class="btn">Suchen</button>
   </div>
 
@@ -205,6 +215,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 (function(){
   "use strict";
@@ -229,16 +240,19 @@
 
   const map=L.map("map",{scrollWheelZoom:true,zoomControl:true}).setView([50.55,9.67],11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+  const cluster=L.markerClusterGroup({maxClusterRadius:50,showCoverageOnHover:false});
+  map.addLayer(cluster);
 
   const $=id=>document.getElementById(id);
-  const appEl=$("app"), listEl=$("list"), qEl=$("q"), goBtn=$("go"), hereBtn=$("here");
+  const appEl=$("app"), listEl=$("list"), qEl=$("q"), goBtn=$("go"), hereBtn=$("here"), nearBtn=$("near");
   const useGoogle=$("useGoogle"), useOsm=$("useOsm"), onlyContact=$("onlyContact"), hidePlatform=$("hidePlatform"), hideChains=$("hideChains");
   const keyEl=$("key"), saveKey=$("saveKey");
 
   keyEl.value=localStorage.getItem("abseits_gkey")||"";
   saveKey.addEventListener("click",()=>{localStorage.setItem("abseits_gkey",keyEl.value.trim());saveKey.textContent="Gespeichert ✓";setTimeout(()=>saveKey.textContent="Speichern",1500);});
 
-  let markers=[], results=[], busy=false, lastInfo={};
+  let markers=[], results=[], busy=false, lastInfo={}, origin=null;
+  const isApple=/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
 
   // ---- Ansicht umschalten ----
   function setView(v){
@@ -249,7 +263,14 @@
   document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
 
   function setStatus(m){listEl.innerHTML='<p class="status">'+m+'</p>';}
-  function clearMarkers(){markers.forEach(m=>map.removeLayer(m.marker));markers=[];}
+  function clearMarkers(){cluster.clearLayers();markers=[];}
+
+  // ---- Entfernung & Route ----
+  function fmtDist(m){ return m<1000 ? Math.round(m/10)*10+" m" : (m/1000).toFixed(m<10000?1:0).replace(".",",")+" km"; }
+  function routeUrl(lat,lon){
+    return isApple ? "https://maps.apple.com/?daddr="+lat+","+lon+"&dirflg=d"
+                   : "https://www.google.com/maps/dir/?api=1&destination="+lat+","+lon;
+  }
 
   // ---- Geocoding ----
   async function geocode(q){
@@ -340,6 +361,7 @@
     if(busy) return;
     busy=true; goBtn.disabled=hereBtn.disabled=true; setStatus("Suche läuft …");
     const b=map.getBounds(), key=(localStorage.getItem("abseits_gkey")||"").trim();
+    origin=map.getCenter(); // Bezugspunkt für Entfernung (Suchort bzw. eigener Standort)
     const tasks=[], info={counts:[],errs:[]};
     if(useOsm.checked) tasks.push(fetchOsm(b).then(r=>{info.counts.push("OSM: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
     if(useGoogle.checked&&key) tasks.push(fetchGoogle(b,key).then(r=>{info.counts.push("Google: "+r.length);return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
@@ -358,13 +380,16 @@
   }
   function visible(){
     const cats=activeCats();
-    return results.filter(r=>{
+    const out=results.filter(r=>{
       if(hidePlatform.checked&&r.isPlatform) return false;
       if(hideChains.checked&&r.isChain) return false;
       if(onlyContact.checked&&!r.website&&!r.phone) return false;
       if(!cats.has(r.cat||"sonstige")) return false;
       return true;
-    }).sort((a,b)=>{
+    });
+    if(origin) out.forEach(r=>{ r.dist=map.distance(origin,[r.lat,r.lon]); });
+    return out.sort((a,b)=>{
+      if(origin) return a.dist-b.dist; // nach Entfernung
       const rank=x=>x.website&&!x.isPlatform?0:(x.phone?1:2);
       return rank(a)-rank(b)||a.name.localeCompare(b.name,"de");
     });
@@ -391,15 +416,26 @@
     items.forEach((it,i)=>{
       const id="it"+i;
       const color=it.website&&!it.isPlatform?css("--pine"):it.phone?css("--ochre"):it.isPlatform?css("--flag"):css("--slate");
-      const marker=L.circleMarker([it.lat,it.lon],{radius:8,color:"#fff",weight:2,fillColor:color,fillOpacity:1}).addTo(map);
+      const marker=L.circleMarker([it.lat,it.lon],{radius:8,color:"#fff",weight:2,fillColor:color,fillOpacity:1});
       marker.bindPopup(popup(it));
+      cluster.addLayer(marker);
       markers.push({marker,id});
-      const card=document.createElement("button");
-      card.className="item"; card.type="button"; card.dataset.id=id;
+
+      const pinSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+      const phoneSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.1-1.1a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7A2 2 0 0 1 22 16.9z"/></svg>';
+      const acts=[];
+      if(origin&&it.dist!=null) acts.push('<span class="dist">'+fmtDist(it.dist)+'</span>');
+      acts.push('<a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+pinSvg+'Route</a>');
+      if(it.website&&!it.isPlatform) acts.push('<a href="'+esc(it.website)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>');
+      if(it.phone) acts.push('<a href="tel:'+esc(it.phone.replace(/\s/g,""))+'" onclick="event.stopPropagation()">'+phoneSvg+'Anrufen</a>');
+
+      const card=document.createElement("div");
+      card.className="item"; card.dataset.id=id; card.setAttribute("role","button"); card.tabIndex=0;
       card.innerHTML='<h3>'+esc(it.name)+'</h3><div class="kind">'+esc(it.kind)+(it.addr?' · '+esc(it.addr):'')+'</div>'+
         '<div class="badges">'+kindBadge(it)+srcBadge(it.source)+'</div>'+
-        (it.website&&!it.isPlatform?'<a href="'+esc(it.website)+'" target="_blank" rel="noopener">'+esc(short(it.website))+'</a>':it.phone?'<span class="meta">'+esc(it.phone)+'</span>':'');
+        '<div class="actions">'+acts.join("")+'</div>';
       card.addEventListener("click",()=>focusItem(id));
+      card.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); focusItem(id); } });
       listEl.appendChild(card);
     });
   }
@@ -409,14 +445,15 @@
     if(it.addr) h+='<div style="font-size:13px;margin-top:4px">'+esc(it.addr)+'</div>';
     if(it.website&&!it.isPlatform) h+='<div style="margin-top:6px"><a href="'+esc(it.website)+'" target="_blank" rel="noopener">Website</a></div>';
     if(it.phone) h+='<div style="font-size:13px;margin-top:4px"><a href="tel:'+esc(it.phone.replace(/\s/g,""))+'">'+esc(it.phone)+'</a></div>';
+    h+='<div style="font-size:13px;margin-top:4px"><a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener">Route</a></div>';
     return h;
   }
 
-  // Tippen in der Liste -> Karte zeigen
+  // Tippen in der Liste -> Karte zeigen (ggf. Cluster aufklappen)
   function focusItem(id){
     const m=markers.find(x=>x.id===id); if(!m) return;
     setView("map");
-    setTimeout(()=>{ map.setView(m.marker.getLatLng(),Math.max(map.getZoom(),14)); m.marker.openPopup(); },120);
+    setTimeout(()=>{ cluster.zoomToShowLayer(m.marker,()=>m.marker.openPopup()); },150);
   }
 
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -435,8 +472,19 @@
     }catch(e){ setStatus("Ortssuche fehlgeschlagen: "+e.message); }
   }
 
+  function nearMe(){
+    if(!navigator.geolocation){ setView("list"); setStatus("Standort wird vom Browser nicht unterstützt."); return; }
+    setView("list"); setStatus("Standort wird ermittelt …");
+    navigator.geolocation.getCurrentPosition(
+      pos=>{ map.setView([pos.coords.latitude,pos.coords.longitude],13); fetchArea(); },
+      err=>{ setStatus(err.code===1 ? "Standort-Zugriff abgelehnt. Erlaube ihn in den Einstellungen, oder tippe einen Ort ein." : "Standort nicht verfügbar — bitte Ort eingeben."); },
+      {enableHighAccuracy:true,timeout:10000,maximumAge:60000}
+    );
+  }
+
   goBtn.addEventListener("click",doSearch);
   qEl.addEventListener("keydown",e=>{if(e.key==="Enter")doSearch();});
+  nearBtn.addEventListener("click",nearMe);
   hereBtn.addEventListener("click",()=>{ setView("list"); fetchArea(); });
   [onlyContact,hidePlatform,hideChains].forEach(el=>el.addEventListener("change",()=>{if(results.length)render();}));
   document.querySelectorAll(".cat").forEach(el=>el.addEventListener("change",()=>{if(results.length)render();}));
