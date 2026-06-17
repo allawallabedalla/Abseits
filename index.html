@@ -451,7 +451,7 @@
       const acts=[];
       if(origin&&it.dist!=null) acts.push('<span class="dist">'+fmtDist(it.dist)+'</span>');
       acts.push('<a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+pinSvg+'Karten</a>');
-      acts.push('<button type="button" class="copybtn">'+copySvg+'Koordinaten</button>');
+      acts.push('<button type="button" class="copybtn">'+copySvg+'GPS</button>');
       if(it.website&&!it.isPlatform) acts.push('<a href="'+esc(it.website)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>');
       if(it.phone) acts.push('<a href="tel:'+esc(it.phone.replace(/\s/g,""))+'" onclick="event.stopPropagation()">'+phoneSvg+'Anrufen</a>');
 
@@ -474,7 +474,7 @@
     if(it.website&&!it.isPlatform) h+='<div style="margin-top:6px"><a href="'+esc(it.website)+'" target="_blank" rel="noopener">Website</a></div>';
     if(it.phone) h+='<div style="font-size:13px;margin-top:4px"><a href="tel:'+esc(it.phone.replace(/\s/g,""))+'">'+esc(it.phone)+'</a></div>';
     h+='<div style="font-size:13px;margin-top:6px">Route: <a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener">Karten</a></div>';
-    h+='<div style="margin-top:6px"><button type="button" class="copybtn" data-lat="'+it.lat+'" data-lon="'+it.lon+'">Koordinaten kopieren</button></div>';
+    h+='<div style="margin-top:6px"><button type="button" class="copybtn" data-lat="'+it.lat+'" data-lon="'+it.lon+'">GPS kopieren</button></div>';
     return h;
   }
 
