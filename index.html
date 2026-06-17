@@ -108,6 +108,7 @@
   .switch{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:52px;cursor:pointer;border-bottom:1px solid var(--line)}
   .switch .lab{display:flex;flex-direction:column}
   .switch .lab small{color:var(--muted);font-size:12.5px}
+  .switch-note{margin:8px 2px 4px;font-size:12.5px;line-height:1.45;color:var(--ochre);background:rgba(176,118,54,.10);border-left:3px solid var(--ochre);padding:8px 10px;border-radius:6px}
   .switch input{position:absolute;opacity:0;width:1px;height:1px}
   .switch .ui{position:relative;flex:0 0 auto;width:52px;height:32px;border-radius:32px;background:var(--line);transition:background .15s}
   .switch .ui::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28);transition:transform .15s}
@@ -182,7 +183,8 @@
         <label class="switch"><span class="lab">OpenStreetMap<small>Kostenlos, ohne Key</small></span><input type="checkbox" id="useOsm" checked><span class="ui"></span></label>
 
         <h2>Anzeigen</h2>
-        <label class="switch"><span class="lab">Nur mit Website / Telefon<small>Häuser ohne Kontakt ausblenden</small></span><input type="checkbox" id="onlyContact" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Nur mit Website / Telefon<small>Häuser ohne Kontakt ausblenden</small></span><input type="checkbox" id="onlyContact"><span class="ui"></span></label>
+        <p class="switch-note" id="contactNote" hidden>Achtung: blendet alle Einträge ohne Website/Telefon aus — betrifft v. a. Camping-, Wildnis- und Schutzhütten.</p>
         <label class="switch"><span class="lab">Airbnb / Booking ausblenden<small>Plattform-Links entfernen</small></span><input type="checkbox" id="hidePlatform" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Ketten ausblenden<small>B&amp;B, Ibis, Motel One …</small></span><input type="checkbox" id="hideChains" checked><span class="ui"></span></label>
 
@@ -259,13 +261,22 @@
   const $=id=>document.getElementById(id);
   const appEl=$("app"), listEl=$("list"), qEl=$("q"), goBtn=$("go"), hereBtn=$("here"), nearBtn=$("near");
   const useGoogle=$("useGoogle"), useOsm=$("useOsm"), onlyContact=$("onlyContact"), hidePlatform=$("hidePlatform"), hideChains=$("hideChains");
-  const keyEl=$("key"), saveKey=$("saveKey");
+  const keyEl=$("key"), saveKey=$("saveKey"), contactNote=$("contactNote");
 
   keyEl.value=localStorage.getItem("abseits_gkey")||"";
   saveKey.addEventListener("click",()=>{localStorage.setItem("abseits_gkey",keyEl.value.trim());saveKey.textContent="Gespeichert ✓";setTimeout(()=>saveKey.textContent="Speichern",1500);});
 
-  let markers=[], results=[], busy=false, lastInfo={}, origin=null;
+  let markers=[], results=[], busy=false, lastInfo={}, origin=null, userLoc=null;
   const isApple=/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+
+  // Geräte-Standort merken (für Entfernung). Nur still abfragen, wenn bereits erlaubt.
+  function setUserLoc(lat,lon){ userLoc=L.latLng(lat,lon); if(results.length) render(); }
+  if(navigator.geolocation&&navigator.permissions){
+    navigator.permissions.query({name:"geolocation"}).then(p=>{
+      if(p.state==="granted") navigator.geolocation.getCurrentPosition(
+        pos=>setUserLoc(pos.coords.latitude,pos.coords.longitude),()=>{},{maximumAge:300000,timeout:8000});
+    }).catch(()=>{});
+  }
 
   // ---- Ansicht umschalten ----
   function setView(v){
@@ -420,18 +431,18 @@
       if(!cats.has(r.cat||"sonstige")) return false;
       return true;
     });
-    if(origin) out.forEach(r=>{ r.dist=map.distance(origin,[r.lat,r.lon]); });
+    const ref=userLoc||origin; // bevorzugt echter Geräte-Standort
+    if(ref) out.forEach(r=>{ r.dist=map.distance(ref,[r.lat,r.lon]); });
     return out.sort((a,b)=>{
-      if(origin) return a.dist-b.dist; // nach Entfernung
+      if(ref) return a.dist-b.dist; // nach Entfernung
       const rank=x=>x.website&&!x.isPlatform?0:(x.phone?1:2);
       return rank(a)-rank(b)||a.name.localeCompare(b.name,"de");
     });
   }
 
-  function srcBadge(s){return s==="google"?'<span class="badge src g">Google</span>':s==="osm"?'<span class="badge src">OSM</span>':'<span class="badge src g">Google + OSM</span>';}
   function kindBadge(it){
     if(it.isPlatform) return '<span class="badge flag">Plattform-Link</span>';
-    if(it.website) return '<span class="badge web">Eigene Website</span>';
+    if(it.website) return '';
     if(it.phone) return '<span class="badge tel">Nur Telefon</span>';
     return '<span class="badge none">Keine Kontaktdaten</span>';
   }
@@ -458,7 +469,7 @@
       const phoneSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.1-1.1a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7A2 2 0 0 1 22 16.9z"/></svg>';
       const copySvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
       const acts=[];
-      if(origin&&it.dist!=null) acts.push('<span class="dist">'+fmtDist(it.dist)+'</span>');
+      if(it.dist!=null) acts.push('<span class="dist">'+fmtDist(it.dist)+'</span>');
       acts.push('<a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+pinSvg+'Karten</a>');
       acts.push('<button type="button" class="copybtn">'+copySvg+'GPS</button>');
       if(it.website&&!it.isPlatform) acts.push('<a href="'+esc(it.website)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>');
@@ -467,7 +478,6 @@
       const card=document.createElement("div");
       card.className="item"; card.dataset.id=id; card.setAttribute("role","button"); card.tabIndex=0;
       card.innerHTML='<h3>'+esc(it.name)+'</h3><div class="kind">'+esc(it.kind)+(it.addr?' · '+esc(it.addr):'')+'</div>'+
-        '<div class="badges">'+kindBadge(it)+srcBadge(it.source)+'</div>'+
         '<div class="actions">'+acts.join("")+'</div>';
       card.addEventListener("click",()=>focusItem(id));
       card.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); focusItem(id); } });
@@ -515,7 +525,7 @@
     if(!navigator.geolocation){ setView("list"); setStatus("Standort wird vom Browser nicht unterstützt."); return; }
     setView("list"); setStatus("Standort wird ermittelt …");
     navigator.geolocation.getCurrentPosition(
-      pos=>{ const ll=L.latLng(pos.coords.latitude,pos.coords.longitude); map.setView(ll,14); fetchArea(ll.toBounds(6000)); },
+      pos=>{ const ll=L.latLng(pos.coords.latitude,pos.coords.longitude); userLoc=ll; map.setView(ll,14); fetchArea(ll.toBounds(6000)); },
       err=>{ setStatus(err.code===1 ? "Standort-Zugriff abgelehnt. Erlaube ihn in den Einstellungen, oder tippe einen Ort ein." : "Standort nicht verfügbar — bitte Ort eingeben."); },
       {enableHighAccuracy:true,timeout:10000,maximumAge:60000}
     );
@@ -526,6 +536,7 @@
   nearBtn.addEventListener("click",nearMe);
   hereBtn.addEventListener("click",()=>{ setView("list"); fetchArea(); });
   [onlyContact,hidePlatform,hideChains].forEach(el=>el.addEventListener("change",()=>{if(results.length)render();}));
+  onlyContact.addEventListener("change",()=>{ contactNote.hidden=!onlyContact.checked; });
   document.querySelectorAll(".cat").forEach(el=>el.addEventListener("change",()=>{if(results.length)render();}));
   [useGoogle,useOsm].forEach(el=>el.addEventListener("change",()=>{if(results.length)fetchArea();}));
 })();
