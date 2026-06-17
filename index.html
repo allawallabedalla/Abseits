@@ -357,11 +357,11 @@
   }
 
   // ---- Suche ----
-  async function fetchArea(){
+  async function fetchArea(boundsArg){
     if(busy) return;
     busy=true; goBtn.disabled=hereBtn.disabled=true; setStatus("Suche läuft …");
-    const b=map.getBounds(), key=(localStorage.getItem("abseits_gkey")||"").trim();
-    origin=map.getCenter(); // Bezugspunkt für Entfernung (Suchort bzw. eigener Standort)
+    const b=boundsArg||map.getBounds(), key=(localStorage.getItem("abseits_gkey")||"").trim();
+    origin=b.getCenter(); // Bezugspunkt für Entfernung (Suchort bzw. eigener Standort)
     const tasks=[], info={counts:[],errs:[]};
     if(useOsm.checked) tasks.push(fetchOsm(b).then(r=>{info.counts.push("OSM: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
     if(useGoogle.checked&&key) tasks.push(fetchGoogle(b,key).then(r=>{info.counts.push("Google: "+r.length);return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
@@ -467,8 +467,9 @@
       const p=await geocode(q);
       if(!p){ setStatus('Ort „'+esc(q)+'“ nicht gefunden — versuch es genauer.'); return; }
       const bb=p.boundingbox.map(Number);
-      map.fitBounds([[bb[0],bb[2]],[bb[1],bb[3]]]);
-      await fetchArea();
+      const bounds=L.latLngBounds([[bb[0],bb[2]],[bb[1],bb[3]]]);
+      map.fitBounds(bounds);
+      await fetchArea(bounds);
     }catch(e){ setStatus("Ortssuche fehlgeschlagen: "+e.message); }
   }
 
@@ -476,7 +477,7 @@
     if(!navigator.geolocation){ setView("list"); setStatus("Standort wird vom Browser nicht unterstützt."); return; }
     setView("list"); setStatus("Standort wird ermittelt …");
     navigator.geolocation.getCurrentPosition(
-      pos=>{ map.setView([pos.coords.latitude,pos.coords.longitude],13); fetchArea(); },
+      pos=>{ const ll=L.latLng(pos.coords.latitude,pos.coords.longitude); map.setView(ll,14); fetchArea(ll.toBounds(6000)); },
       err=>{ setStatus(err.code===1 ? "Standort-Zugriff abgelehnt. Erlaube ihn in den Einstellungen, oder tippe einen Ort ein." : "Standort nicht verfügbar — bitte Ort eingeben."); },
       {enableHighAccuracy:true,timeout:10000,maximumAge:60000}
     );
