@@ -470,7 +470,7 @@
       const copySvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
       const acts=[];
       if(it.dist!=null) acts.push('<span class="dist">'+fmtDist(it.dist)+'</span>');
-      acts.push('<a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+pinSvg+'Karten</a>');
+      acts.push('<a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+pinSvg+'Route</a>');
       acts.push('<button type="button" class="copybtn">'+copySvg+'GPS</button>');
       if(it.website&&!it.isPlatform) acts.push('<a href="'+esc(it.website)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>');
       if(it.phone) acts.push('<a href="tel:'+esc(it.phone.replace(/\s/g,""))+'" onclick="event.stopPropagation()">'+phoneSvg+'Anrufen</a>');
@@ -492,7 +492,7 @@
     if(it.addr) h+='<div style="font-size:13px;margin-top:4px">'+esc(it.addr)+'</div>';
     if(it.website&&!it.isPlatform) h+='<div style="margin-top:6px"><a href="'+esc(it.website)+'" target="_blank" rel="noopener">Website</a></div>';
     if(it.phone) h+='<div style="font-size:13px;margin-top:4px"><a href="tel:'+esc(it.phone.replace(/\s/g,""))+'">'+esc(it.phone)+'</a></div>';
-    h+='<div style="font-size:13px;margin-top:6px">Route: <a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener">Karten</a></div>';
+    h+='<div style="font-size:13px;margin-top:6px"><a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener">Route</a></div>';
     h+='<div style="margin-top:6px"><button type="button" class="copybtn" data-lat="'+it.lat+'" data-lon="'+it.lon+'">GPS kopieren</button></div>';
     return h;
   }
