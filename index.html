@@ -7,7 +7,8 @@
 
 <!-- PWA -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#33503a">
+<meta name="theme-color" content="#f1f0ea" media="(prefers-color-scheme:light)">
+<meta name="theme-color" content="#151712" media="(prefers-color-scheme:dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -31,6 +32,13 @@
     --safe-t:env(safe-area-inset-top,0px);
     --safe-b:env(safe-area-inset-bottom,0px);
   }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#151712; --ink:#ecebe3; --muted:#9a9c90; --line:#33372e; --card:#1f221b;
+      --pine:#6f9e7c; --ochre:#c79256; --slate:#7e8175; --flag:#d4715f; --gbl:#7aa6e0; --focus:#6f9e7c;
+    }
+    #map{background:#22251e}
+  }
   *{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;font-family:"Poppins",system-ui,sans-serif;color:var(--ink);background:var(--paper);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
@@ -44,9 +52,17 @@
   .brand .dot{color:var(--pine)}
   .tag{display:none;color:var(--muted);font-size:13px;margin-left:10px}
 
-  .searchbar{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line)}
+  .searchbar{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);position:relative}
   .searchbar input{flex:1;min-width:0;padding:12px 14px;border:1px solid var(--line);background:var(--card);border-radius:10px}
   .searchbar input:focus{outline:2px solid var(--focus);outline-offset:1px;border-color:transparent}
+
+  /* ---- Orts-Autocomplete ---- */
+  .ac{position:absolute;left:16px;right:16px;top:calc(100% - 2px);z-index:1200;margin:0;padding:0;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 8px 28px rgba(0,0,0,.16)}
+  .ac[hidden]{display:none}
+  .ac li{padding:11px 14px;cursor:pointer;border-bottom:1px solid var(--line);font-size:14px}
+  .ac li:last-child{border-bottom:0}
+  .ac li.sel{background:var(--paper)}
+  .ac .sub{color:var(--muted);font-size:12.5px;margin-top:1px}
   .btn{cursor:pointer;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);padding:0 18px;min-height:48px;font-weight:600;white-space:nowrap}
   .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line);font-weight:500}
   .btn.iconbtn{padding:0;width:48px;display:flex;align-items:center;justify-content:center;color:var(--pine)}
@@ -153,6 +169,7 @@
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
     </button>
     <button id="go" class="btn">Suchen</button>
+    <ul class="ac" id="ac" role="listbox" aria-label="Ortsvorschläge" hidden></ul>
   </div>
 
   <div class="seg" role="tablist" aria-label="Ansicht">
@@ -263,24 +280,33 @@
   });
 
   const $=id=>document.getElementById(id);
-  const appEl=$("app"), listEl=$("list"), qEl=$("q"), goBtn=$("go"), hereBtn=$("here"), nearBtn=$("near");
+  const appEl=$("app"), listEl=$("list"), qEl=$("q"), goBtn=$("go"), hereBtn=$("here"), nearBtn=$("near"), acEl=$("ac");
   const useGoogle=$("useGoogle"), useOsm=$("useOsm"), onlyContact=$("onlyContact"), hidePlatform=$("hidePlatform"), hideChains=$("hideChains");
   const keyEl=$("key"), saveKey=$("saveKey"), contactNote=$("contactNote");
 
   keyEl.value=localStorage.getItem("abseits_gkey")||"";
   saveKey.addEventListener("click",()=>{localStorage.setItem("abseits_gkey",keyEl.value.trim());saveKey.textContent="Gespeichert ✓";setTimeout(()=>saveKey.textContent="Speichern",1500);});
 
-  let markers=[], results=[], busy=false, lastInfo={}, origin=null, userLoc=null;
-  const isApple=/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
-
-  // Geräte-Standort merken (für Entfernung). Nur still abfragen, wenn bereits erlaubt.
-  function setUserLoc(lat,lon){ userLoc=L.latLng(lat,lon); if(results.length) render(); }
-  if(navigator.geolocation&&navigator.permissions){
-    navigator.permissions.query({name:"geolocation"}).then(p=>{
-      if(p.state==="granted") navigator.geolocation.getCurrentPosition(
-        pos=>setUserLoc(pos.coords.latitude,pos.coords.longitude),()=>{},{maximumAge:300000,timeout:8000});
-    }).catch(()=>{});
+  // ---- Einstellungen merken (überleben App-Neustart) ----
+  function savePrefs(){
+    const cats={};
+    document.querySelectorAll(".cat").forEach(c=>cats[c.dataset.cat]=c.checked);
+    try{ localStorage.setItem("abseits_prefs",JSON.stringify({
+      useGoogle:useGoogle.checked,useOsm:useOsm.checked,onlyContact:onlyContact.checked,
+      hidePlatform:hidePlatform.checked,hideChains:hideChains.checked,cats,view:appEl.dataset.view
+    })); }catch(e){}
   }
+  function loadPrefs(){
+    let p; try{ p=JSON.parse(localStorage.getItem("abseits_prefs")||"{}"); }catch(e){ p={}; }
+    [["useGoogle",useGoogle],["useOsm",useOsm],["onlyContact",onlyContact],["hidePlatform",hidePlatform],["hideChains",hideChains]]
+      .forEach(([k,el])=>{ if(typeof p[k]==="boolean") el.checked=p[k]; });
+    if(p.cats) document.querySelectorAll(".cat").forEach(c=>{ if(c.dataset.cat in p.cats) c.checked=p.cats[c.dataset.cat]; });
+    contactNote.hidden=!onlyContact.checked;
+    if(p.view&&p.view!=="filters") setView(p.view);
+  }
+
+  let markers=[], results=[], busy=false, lastInfo={}, origin=null;
+  const isApple=/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
 
   // ---- Ansicht umschalten ----
   function setView(v){
@@ -291,6 +317,7 @@
       b.setAttribute("aria-selected",on?"true":"false");
     });
     if(v==="map") setTimeout(()=>map.invalidateSize(),60);
+    savePrefs();
   }
   document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
 
@@ -445,7 +472,7 @@
       if(!cats.has(r.cat||"sonstige")) return false;
       return true;
     });
-    const ref=userLoc||origin; // bevorzugt echter Geräte-Standort
+    const ref=origin; // Zentrum der aktuellen Suche (Ort, Kartenbereich oder eigener Standort)
     if(ref) out.forEach(r=>{ r.dist=map.distance(ref,[r.lat,r.lon]); });
     return out.sort((a,b)=>{
       if(ref) return a.dist-b.dist; // nach Entfernung
@@ -502,7 +529,7 @@
   }
 
   function popup(it){
-    let h='<h3>'+esc(it.name)+'</h3><div style="color:#6c6f64;font-size:13px">'+esc(it.kind)+'</div>';
+    let h='<h3>'+esc(it.name)+'</h3><div style="color:var(--muted);font-size:13px">'+esc(it.kind)+'</div>';
     if(it.addr) h+='<div style="font-size:13px;margin-top:4px">'+esc(it.addr)+'</div>';
     if(it.website&&!it.isPlatform) h+='<div style="margin-top:6px"><a href="'+esc(it.website)+'" target="_blank" rel="noopener">Website</a></div>';
     if(it.phone) h+='<div style="font-size:13px;margin-top:4px"><a href="tel:'+esc(it.phone.replace(/\s/g,""))+'">'+esc(it.phone)+'</a></div>';
@@ -519,40 +546,108 @@
   }
 
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-  function short(u){return u.replace(/^https?:\/\//,"").replace(/\/$/,"");}
+
+  // ---- Deep-Links: Suche im URL-Hash (teilbar/bookmarkbar) ----
+  function parseHash(){
+    const o={}, h=location.hash.replace(/^#/,"");
+    if(h) h.split("&").forEach(p=>{ const i=p.indexOf("="); if(i>0) o[decodeURIComponent(p.slice(0,i))]=decodeURIComponent(p.slice(i+1)); });
+    return o;
+  }
+  function updateHash(params){
+    const h=Object.entries(params).filter(([,v])=>v!=null&&v!=="").map(([k,v])=>k+"="+encodeURIComponent(v)).join("&");
+    history.replaceState(null,"",h?"#"+h:location.pathname+location.search);
+  }
+  function applyHash(){
+    const o=parseHash();
+    if(o.q){ qEl.value=o.q; doSearch(); return; }
+    if(o.lat&&o.lon){ setView("list"); map.setView([+o.lat,+o.lon],+o.z||13); fetchArea(); }
+  }
+
+  // Einen gefundenen Ort (Nominatim-Treffer) anzeigen
+  async function searchResult(p){
+    const bb=p.boundingbox.map(Number);
+    const bounds=L.latLngBounds([[bb[0],bb[2]],[bb[1],bb[3]]]);
+    map.fitBounds(bounds);
+    updateHash({q:qEl.value.trim()});
+    await fetchArea(bounds);
+  }
 
   async function doSearch(){
     if(busy) return;
     const q=qEl.value.trim(); if(!q) return;
-    qEl.blur(); setView("list"); setStatus("Ort wird gesucht …");
+    qEl.blur(); hideAC(); setView("list"); setStatus("Ort wird gesucht …");
     try{
       const p=await geocode(q);
       if(!p){ setStatus('Ort „'+esc(q)+'“ nicht gefunden — versuch es genauer.'); return; }
-      const bb=p.boundingbox.map(Number);
-      const bounds=L.latLngBounds([[bb[0],bb[2]],[bb[1],bb[3]]]);
-      map.fitBounds(bounds);
-      await fetchArea(bounds);
+      await searchResult(p);
     }catch(e){ setStatus("Ortssuche fehlgeschlagen: "+e.message); }
   }
+
+  // ---- Orts-Autocomplete (Nominatim, debounced) ----
+  let acItems=[], acSel=-1, acTimer=null, acSeq=0;
+  function hideAC(){ acEl.hidden=true; acEl.innerHTML=""; acItems=[]; acSel=-1; }
+  function highlightAC(){ [...acEl.children].forEach((li,i)=>li.classList.toggle("sel",i===acSel)); }
+  function renderAC(items){
+    acItems=items; acSel=-1;
+    if(!items.length){ hideAC(); return; }
+    acEl.innerHTML=items.map((it,i)=>{
+      const parts=String(it.display_name||"").split(", "), main=parts.shift()||"";
+      return '<li role="option" data-i="'+i+'"><div>'+esc(main)+'</div><div class="sub">'+esc(parts.join(", "))+'</div></li>';
+    }).join("");
+    acEl.hidden=false;
+  }
+  async function geocodeList(q){
+    const url="https://nominatim.openstreetmap.org/search?format=json&limit=5&q="+encodeURIComponent(q);
+    const r=await fetch(url,{headers:{"Accept-Language":"de"}});
+    return r.ok ? r.json() : [];
+  }
+  function chooseAC(i){
+    const p=acItems[i]; if(!p) return;
+    qEl.value=String(p.display_name||"").split(", ")[0];
+    hideAC(); qEl.blur(); setView("list"); setStatus("Suche läuft …");
+    searchResult(p).catch(e=>setStatus("Suche fehlgeschlagen: "+e.message));
+  }
+  qEl.addEventListener("input",()=>{
+    const q=qEl.value.trim(); clearTimeout(acTimer);
+    if(q.length<3){ hideAC(); return; }
+    acTimer=setTimeout(async()=>{
+      const seq=++acSeq;
+      const items=await geocodeList(q).catch(()=>[]);
+      if(seq===acSeq && qEl.value.trim().length>=3) renderAC(items);
+    },300);
+  });
+  acEl.addEventListener("mousedown",e=>{ const li=e.target.closest("li"); if(li){ e.preventDefault(); chooseAC(+li.dataset.i); } });
+  document.addEventListener("click",e=>{ if(!e.target.closest(".searchbar")) hideAC(); });
 
   function nearMe(){
     if(!navigator.geolocation){ setView("list"); setStatus("Standort wird vom Browser nicht unterstützt."); return; }
     setView("list"); setStatus("Standort wird ermittelt …");
     navigator.geolocation.getCurrentPosition(
-      pos=>{ const ll=L.latLng(pos.coords.latitude,pos.coords.longitude); userLoc=ll; map.setView(ll,14); fetchArea(ll.toBounds(6000)); },
+      pos=>{ const ll=L.latLng(pos.coords.latitude,pos.coords.longitude); map.setView(ll,14); updateHash({lat:ll.lat.toFixed(5),lon:ll.lng.toFixed(5),z:14}); fetchArea(ll.toBounds(6000)); },
       err=>{ setStatus(err.code===1 ? "Standort-Zugriff abgelehnt. Erlaube ihn in den Einstellungen, oder tippe einen Ort ein." : "Standort nicht verfügbar — bitte Ort eingeben."); },
       {enableHighAccuracy:true,timeout:10000,maximumAge:60000}
     );
   }
 
   goBtn.addEventListener("click",doSearch);
-  qEl.addEventListener("keydown",e=>{if(e.key==="Enter")doSearch();});
+  qEl.addEventListener("keydown",e=>{
+    if(!acEl.hidden && acItems.length){
+      if(e.key==="ArrowDown"){ e.preventDefault(); acSel=(acSel+1)%acItems.length; highlightAC(); return; }
+      if(e.key==="ArrowUp"){ e.preventDefault(); acSel=(acSel-1+acItems.length)%acItems.length; highlightAC(); return; }
+      if(e.key==="Enter"){ e.preventDefault(); acSel>=0?chooseAC(acSel):doSearch(); return; }
+      if(e.key==="Escape"){ hideAC(); return; }
+    } else if(e.key==="Enter"){ doSearch(); }
+  });
   nearBtn.addEventListener("click",nearMe);
-  hereBtn.addEventListener("click",()=>{ setView("list"); fetchArea(); });
-  [onlyContact,hidePlatform,hideChains].forEach(el=>el.addEventListener("change",()=>{if(results.length)render();}));
+  hereBtn.addEventListener("click",()=>{ setView("list"); const c=map.getCenter(); updateHash({lat:c.lat.toFixed(5),lon:c.lng.toFixed(5),z:map.getZoom()}); fetchArea(); });
+  [onlyContact,hidePlatform,hideChains].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
   onlyContact.addEventListener("change",()=>{ contactNote.hidden=!onlyContact.checked; });
-  document.querySelectorAll(".cat").forEach(el=>el.addEventListener("change",()=>{if(results.length)render();}));
-  [useGoogle,useOsm].forEach(el=>el.addEventListener("change",()=>{if(results.length)fetchArea();}));
+  document.querySelectorAll(".cat").forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
+  [useGoogle,useOsm].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)fetchArea();}));
+
+  // Gespeicherte Einstellungen & Deep-Link anwenden
+  loadPrefs();
+  applyHash();
 })();
 
 // PWA: Service-Worker registrieren (nur über https oder localhost aktiv)
