@@ -230,6 +230,7 @@
         <label class="switch"><span class="lab">Beim Verschieben neu suchen<small>Sucht automatisch im neuen Kartenbereich</small></span><input type="checkbox" id="autoSearch"><span class="ui"></span></label>
         <p class="switch-note" id="autoNote" hidden>Hinweis: Bei aktivem Google-Key löst jede Kartenbewegung eine neue Google-Suche aus (kann Kosten verursachen).</p>
 
+        <div id="keySection">
         <h2>Google-API-Key</h2>
         <div class="keyrow">
           <input id="key" type="password" placeholder="Key — nur lokal gespeichert" autocomplete="off">
@@ -241,6 +242,7 @@
           Projekt anlegen → <b>Maps JavaScript API</b> und <b>Places API (New)</b> aktivieren → API-Key erstellen → Abrechnung aktivieren.
           Tipp: Key auf Referrer <code>http://localhost:8000/*</code> beschränken und Budget-Limit setzen. Ohne Key läuft nur OSM.
         </p>
+        </div>
 
         <h2>App installieren</h2>
         <p class="hint">
@@ -262,7 +264,7 @@
   // Optionaler Proxy (Cloudflare Worker): hält den Google-Key zentral.
   // Nach dem Deploy hier die Worker-URL eintragen, z. B.
   // "https://abseits-proxy.dein-name.workers.dev". Leer = Nutzer-Key wie bisher.
-  const PROXY_URL = "";
+  const PROXY_URL = "https://abseits-proxy.abseits.workers.dev";
 
   const OSM_TYPES=["guest_house","hotel","hostel","chalet","apartment","motel","bed_and_breakfast","alpine_hut","camp_site","caravan_site","wilderness_hut","camp_pitch"];
   const G_TYPES=["guest_house","bed_and_breakfast","inn","cottage","farmstay","private_guest_room","lodging","hostel","motel","hotel","campground","rv_park","camping_cabin"];
@@ -325,6 +327,13 @@
 
   keyEl.value=localStorage.getItem("abseits_gkey")||"";
   saveKey.addEventListener("click",()=>{localStorage.setItem("abseits_gkey",keyEl.value.trim());saveKey.textContent="Gespeichert ✓";setTimeout(()=>saveKey.textContent="Speichern",1500);});
+
+  // Proxy-Modus: Nutzer braucht keinen eigenen Key -> Key-Bereich ausblenden, Hinweis anpassen
+  if(PROXY_URL){
+    const ks=$("keySection"); if(ks) ks.hidden=true;
+    const gs=document.querySelector("#useGoogle").closest(".switch").querySelector("small");
+    if(gs) gs.textContent="Beste Trefferquote (kein Key nötig)";
+  }
 
   // ---- Einstellungen merken (überleben App-Neustart) ----
   function savePrefs(){

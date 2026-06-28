@@ -27,6 +27,10 @@ export default {
     };
 
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+    // Health-Check: GET zeigt, ob der Worker laeuft und ein Key hinterlegt ist (ohne ihn zu verraten)
+    if (request.method === "GET") {
+      return json({ ok: true, hasKey: !!env.GOOGLE_KEY }, 200, cors);
+    }
     if (request.method !== "POST") return json({ error: "method not allowed" }, 405, cors);
     if (!env.GOOGLE_KEY) return json({ error: "server not configured" }, 500, cors);
 
@@ -72,6 +76,10 @@ export default {
     });
 
     const text = await gResp.text();
+    // Bei Google-Fehler die Ursache durchreichen (sonst kommt nur ein leerer 400 an)
+    if (!gResp.ok) {
+      return json({ error: "google", status: gResp.status, detail: text || "(leer)" }, gResp.status, cors);
+    }
     const headers = {
       ...cors,
       "Content-Type": "application/json",
@@ -79,8 +87,7 @@ export default {
       "X-Cache": "MISS",
     };
     const out = new Response(text, { status: gResp.status, headers });
-    // Nur erfolgreiche Antworten cachen
-    if (gResp.ok) ctx.waitUntil(cache.put(ckey, out.clone()));
+    ctx.waitUntil(cache.put(ckey, out.clone()));
     return out;
   },
 };
