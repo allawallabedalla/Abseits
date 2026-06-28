@@ -123,6 +123,14 @@
   .favbtn.on{color:var(--ochre)}
   .favbtn.on svg{fill:currentColor}
   .actions .sharebtn{display:inline-flex;align-items:center;gap:5px;font:inherit;font-size:14px;font-weight:500;color:var(--pine);background:none;border:0;padding:3px 0;cursor:pointer}
+  /* Symbol-Aktionen mit grosser Tap-Flaeche (Anrufen / Teilen / Merken) */
+  .actions .iconact{display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:44px;padding:0;border-radius:10px;background:none;border:0;cursor:pointer;color:var(--pine)}
+  .actions .iconact svg{width:21px;height:21px}
+  .actions .iconact:active{background:var(--card)}
+  .actions .iconact.favbtn{color:var(--muted)}
+  .actions .iconact.favbtn.on{color:var(--ochre)}
+  .actions .iconact.favbtn.on svg{fill:currentColor}
+  .actions .iconact:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
   /* Merklisten-Aktionsleiste */
   .favbar{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
   .favbar .count{padding:0;flex:1;min-width:90px}
@@ -152,6 +160,7 @@
   .leaflet-popup-content{font-family:"Poppins",sans-serif;margin:12px 14px;line-height:1.45}
   .leaflet-popup-content h3{margin:0 0 4px;font-family:"Poppins",sans-serif;font-size:15px}
   .leaflet-popup-content a{color:var(--pine)}
+  .leaflet-popup-content .popfav{font:inherit;font-size:14px;font-weight:600;color:var(--ochre);background:none;border:0;padding:0;cursor:pointer}
 
   /* ---- Desktop: Liste + Karte nebeneinander ---- */
   @media (min-width:760px){
@@ -324,6 +333,14 @@
     const el=e.popup.getElement(); if(!el) return;
     const cp=el.querySelector(".copybtn");
     if(cp&&!cp.dataset.wired){ cp.dataset.wired="1"; cp.addEventListener("click",()=>copyCoords(cp.dataset.lat,cp.dataset.lon,cp)); }
+    const it=e.popup._source&&e.popup._source.__it;
+    const fv=el.querySelector(".popfav");
+    if(it&&fv&&!fv.dataset.wired){ fv.dataset.wired="1"; fv.addEventListener("click",()=>{
+      toggleFav(it,null);
+      const on=favs.has(favKey(it));
+      fv.setAttribute("aria-pressed",on?"true":"false");
+      fv.textContent=on?"★ Gemerkt":"☆ Merken";
+    }); }
   });
 
   const $=id=>document.getElementById(id);
@@ -394,7 +411,7 @@
     const key=favKey(it);
     if(favs.has(key)){
       favs.delete(key); idbWrite(s=>s.delete(key)).catch(()=>{});
-      if(btn){ btn.classList.remove("on"); btn.setAttribute("aria-pressed","false"); btn.title="Merken"; }
+      if(btn){ btn.classList.remove("on"); btn.setAttribute("aria-pressed","false"); btn.title="Merken"; btn.setAttribute("aria-label","Merken"); }
       if(appEl.dataset.view==="favs") renderFavs();
     }else{
       const rec={key,name:it.name,kind:it.kind,cat:it.cat,lat:it.lat,lon:it.lon,
@@ -402,7 +419,7 @@
         stars:it.stars||0,wheelchair:it.wheelchair||"",wifi:!!it.wifi,
         isPlatform:!!it.isPlatform,savedAt:Date.now()};
       favs.set(key,rec); idbWrite(s=>s.put(rec)).catch(()=>{});
-      if(btn){ btn.classList.add("on"); btn.setAttribute("aria-pressed","true"); btn.title="Gemerkt"; }
+      if(btn){ btn.classList.add("on"); btn.setAttribute("aria-pressed","true"); btn.title="Gemerkt"; btn.setAttribute("aria-label","Gemerkt"); }
     }
     updateFavCount();
   }
@@ -684,6 +701,7 @@
       const id="it"+i;
       const color=it.website&&!it.isPlatform?MC.pine:it.phone?MC.ochre:it.isPlatform?MC.flag:MC.slate;
       const marker=L.circleMarker([it.lat,it.lon],{radius:8,color:"#fff",weight:2,fillColor:color,fillOpacity:1});
+      marker.__it=it;
       marker.bindPopup(popup(it));
       cluster.addLayer(marker);
       markers.push({marker,id});
@@ -700,10 +718,10 @@
     acts.push('<a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+pinSvg+'Route</a>');
     acts.push('<button type="button" class="copybtn">'+copySvg+'GPS</button>');
     if(it.website&&!it.isPlatform) acts.push('<a href="'+esc(it.website)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>');
-    if(it.phone) acts.push('<a href="tel:'+esc(it.phone.replace(/\s/g,""))+'" onclick="event.stopPropagation()">'+phoneSvg+'Anrufen</a>');
+    if(it.phone) acts.push('<a href="tel:'+esc(it.phone.replace(/\s/g,""))+'" class="iconact" title="Anrufen" aria-label="Anrufen" onclick="event.stopPropagation()">'+phoneSvg+'</a>');
     if(it.email) acts.push('<a href="mailto:'+esc(it.email)+'" onclick="event.stopPropagation()">'+mailSvg+'E-Mail</a>');
-    if(canShare) acts.push('<button type="button" class="sharebtn">'+shareSvg+'Teilen</button>');
-    acts.push('<button type="button" class="favbtn'+(fav?' on':'')+'" aria-pressed="'+(fav?'true':'false')+'" title="'+(fav?'Gemerkt':'Merken')+'">'+starSvg+(fav?'Gemerkt':'Merken')+'</button>');
+    if(canShare) acts.push('<button type="button" class="iconact sharebtn" title="Teilen" aria-label="Teilen">'+shareSvg+'</button>');
+    acts.push('<button type="button" class="iconact favbtn'+(fav?' on':'')+'" aria-pressed="'+(fav?'true':'false')+'" title="'+(fav?'Gemerkt':'Merken')+'" aria-label="'+(fav?'Gemerkt':'Merken')+'">'+starSvg+'</button>');
 
     const card=document.createElement("div");
     card.className="item"; card.dataset.id=opts.id||"";
@@ -732,6 +750,8 @@
     if(it.email) h+='<div style="font-size:13px;margin-top:4px"><a href="mailto:'+esc(it.email)+'">'+esc(it.email)+'</a></div>';
     h+='<div style="font-size:13px;margin-top:6px"><a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener">Route</a></div>';
     h+='<div style="margin-top:6px"><button type="button" class="copybtn" data-lat="'+it.lat+'" data-lon="'+it.lon+'">GPS kopieren</button></div>';
+    const favOn=favs.has(favKey(it));
+    h+='<div style="margin-top:6px"><button type="button" class="popfav" aria-pressed="'+(favOn?'true':'false')+'">'+(favOn?'★ Gemerkt':'☆ Merken')+'</button></div>';
     return h;
   }
 
