@@ -122,6 +122,11 @@
   .favbtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
   .favbtn.on{color:var(--ochre)}
   .favbtn.on svg{fill:currentColor}
+  .actions .sharebtn{display:inline-flex;align-items:center;gap:5px;font:inherit;font-size:14px;font-weight:500;color:var(--pine);background:none;border:0;padding:3px 0;cursor:pointer}
+  /* Merklisten-Aktionsleiste */
+  .favbar{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .favbar .count{padding:0;flex:1;min-width:90px}
+  .favbar .btn{min-height:40px;padding:0 14px}
 
   /* ---- Filter-Ansicht ---- */
   .panel{padding:8px 16px calc(24px + var(--safe-b))}
@@ -298,6 +303,8 @@
   const copySvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   const starSvg='<svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.5 9.7l5.9-.9z"/></svg>';
   const mailSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>';
+  const shareSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>';
+  const canShare=typeof navigator!=="undefined"&&!!navigator.share;
 
   // Detail-Badges aus OSM-Tags (Sterne, Barrierefreiheit, WLAN)
   function detailBadges(it){
@@ -406,8 +413,37 @@
   function renderFavs(){
     const items=[...favs.values()].sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
     if(!items.length){ favsEl.innerHTML='<p class="status">Noch nichts gemerkt. Tippe bei einer Unterkunft auf <b>★ Merken</b> — gemerkte Häuser bleiben hier gespeichert, auch offline.</p>'; return; }
-    favsEl.innerHTML='<p class="count">'+items.length+' gemerkt</p>';
+    favsEl.innerHTML='<div class="favbar"><span class="count">'+items.length+' gemerkt</span>'+
+      '<button type="button" class="btn ghost" id="favGpx">GPX</button>'+
+      (canShare?'<button type="button" class="btn ghost" id="favShare">Teilen</button>':'')+'</div>';
     items.forEach(it=>favsEl.appendChild(makeCard(it,{})));
+    const g=$("favGpx"); if(g) g.addEventListener("click",()=>download("abseits-merkliste.gpx",favGpx(items),"application/gpx+xml"));
+    const s=$("favShare"); if(s) s.addEventListener("click",()=>shareList(items));
+  }
+
+  // ---- Export & Teilen ----
+  function download(name,text,type){
+    const url=URL.createObjectURL(new Blob([text],{type:type||"text/plain"}));
+    const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },1000);
+  }
+  function favGpx(items){
+    const wpts=items.map(it=>'  <wpt lat="'+(+it.lat).toFixed(6)+'" lon="'+(+it.lon).toFixed(6)+'">\n'+
+      '    <name>'+esc(it.name||"")+'</name>\n'+
+      (it.addr?'    <desc>'+esc(it.addr)+'</desc>\n':'')+
+      (it.website?'    <link href="'+esc(it.website)+'"/>\n':'')+
+      '    <sym>Lodging</sym>\n  </wpt>').join("\n");
+    return '<?xml version="1.0" encoding="UTF-8"?>\n'+
+      '<gpx version="1.1" creator="Abseits" xmlns="http://www.topografix.com/GPX/1/1">\n'+
+      '  <metadata><name>Abseits — Merkliste</name></metadata>\n'+wpts+'\n</gpx>\n';
+  }
+  function shareList(items){
+    const text=items.map(it=>"• "+(it.name||"")+(it.addr?" — "+it.addr:"")+"\n"+routeUrl(it.lat,it.lon)).join("\n\n");
+    if(canShare) navigator.share({title:"Abseits — Merkliste",text}).catch(()=>{});
+  }
+  function shareItem(it){
+    const text=(it.name||"")+(it.addr?"\n"+it.addr:"")+"\n"+routeUrl(it.lat,it.lon);
+    if(canShare) navigator.share({title:it.name||"Unterkunft",text}).catch(()=>{});
   }
 
   // ---- Ansicht umschalten ----
@@ -654,6 +690,7 @@
     if(it.website&&!it.isPlatform) acts.push('<a href="'+esc(it.website)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>');
     if(it.phone) acts.push('<a href="tel:'+esc(it.phone.replace(/\s/g,""))+'" onclick="event.stopPropagation()">'+phoneSvg+'Anrufen</a>');
     if(it.email) acts.push('<a href="mailto:'+esc(it.email)+'" onclick="event.stopPropagation()">'+mailSvg+'E-Mail</a>');
+    if(canShare) acts.push('<button type="button" class="sharebtn">'+shareSvg+'Teilen</button>');
     acts.push('<button type="button" class="favbtn'+(fav?' on':'')+'" aria-pressed="'+(fav?'true':'false')+'" title="'+(fav?'Gemerkt':'Merken')+'">'+starSvg+(fav?'Gemerkt':'Merken')+'</button>');
 
     const card=document.createElement("div");
@@ -669,6 +706,8 @@
     if(cp) cp.addEventListener("click",e=>{ e.stopPropagation(); copyCoords(it.lat,it.lon,cp); });
     const fb=card.querySelector(".favbtn");
     if(fb) fb.addEventListener("click",e=>{ e.stopPropagation(); toggleFav(it,fb); });
+    const sb=card.querySelector(".sharebtn");
+    if(sb) sb.addEventListener("click",e=>{ e.stopPropagation(); shareItem(it); });
     return card;
   }
 
