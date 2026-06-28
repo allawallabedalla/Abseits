@@ -690,7 +690,7 @@
       if(seq===acSeq && qEl.value.trim().length>=3) renderAC(items);
     },300);
   });
-  acEl.addEventListener("mousedown",e=>{ const li=e.target.closest("li"); if(li){ e.preventDefault(); chooseAC(+li.dataset.i); } });
+  acEl.addEventListener("pointerdown",e=>{ const li=e.target.closest("li"); if(li){ e.preventDefault(); chooseAC(+li.dataset.i); } });
   document.addEventListener("click",e=>{ if(!e.target.closest(".searchbar")) hideAC(); });
 
   function nearMe(){
