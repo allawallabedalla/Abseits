@@ -259,6 +259,11 @@
 (function(){
   "use strict";
 
+  // Optionaler Proxy (Cloudflare Worker): hält den Google-Key zentral.
+  // Nach dem Deploy hier die Worker-URL eintragen, z. B.
+  // "https://abseits-proxy.dein-name.workers.dev". Leer = Nutzer-Key wie bisher.
+  const PROXY_URL = "";
+
   const OSM_TYPES=["guest_house","hotel","hostel","chalet","apartment","motel","bed_and_breakfast","alpine_hut","camp_site","caravan_site","wilderness_hut","camp_pitch"];
   const G_TYPES=["guest_house","bed_and_breakfast","inn","cottage","farmstay","private_guest_room","lodging","hostel","motel","hotel","campground","rv_park","camping_cabin"];
   const LABELS={
@@ -511,6 +516,23 @@
     }).filter(Boolean);
   }
 
+  // Google über den Proxy (Cloudflare Worker, REST) — kein Key im Browser nötig
+  async function fetchGoogleProxy(b){
+    const c=b.getCenter();
+    const radius=Math.min(map.distance(c,b.getNorthEast()),50000);
+    const r=await fetch(PROXY_URL,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({lat:c.lat,lng:c.lng,radius,includedTypes:G_TYPES,maxResultCount:20})});
+    if(!r.ok) throw new Error("Proxy "+r.status);
+    const d=await r.json();
+    return (d.places||[]).map(p=>{
+      const lat=p.location?.latitude, lon=p.location?.longitude;
+      if(lat==null||lon==null) return null;
+      const type=p.primaryType||(p.types&&p.types[0])||"lodging";
+      return {name:(p.displayName&&p.displayName.text)||"Ohne Namen",kind:LABELS[type]||"Unterkunft",cat:catOf(type),lat,lon,
+        website:p.websiteUri||"",phone:p.nationalPhoneNumber||"",addr:p.formattedAddress||"",source:"google"};
+    }).filter(Boolean);
+  }
+
   // ---- Mergen + Dedupe ----
   function norm(s){return s.toLowerCase().replace(/[^a-z0-9äöüß]/g,"");}
   function merge(a){
@@ -547,8 +569,11 @@
     origin=b.getCenter(); // Bezugspunkt für Entfernung (Suchort bzw. eigener Standort)
     const tasks=[], info={counts:[],errs:[]};
     if(useOsm.checked) tasks.push(fetchOsm(b).then(r=>{info.counts.push("OSM: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
-    if(useGoogle.checked&&key) tasks.push(fetchGoogle(b,key).then(r=>{info.counts.push("Google: "+r.length);return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
-    else if(useGoogle.checked&&!key) info.errs.push("Google: kein Key (Tab „Filter“)");
+    if(useGoogle.checked){
+      const gp=PROXY_URL?fetchGoogleProxy(b):(key?fetchGoogle(b,key):null);
+      if(gp) tasks.push(gp.then(r=>{info.counts.push("Google: "+r.length);return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
+      else info.errs.push("Google: kein Key (Tab „Filter“)");
+    }
     const parts=await Promise.all(tasks);
     results=merge([].concat(...parts));
     lastInfo=info;
