@@ -417,7 +417,7 @@
       '<button type="button" class="btn ghost" id="favGpx">GPX</button>'+
       (canShare?'<button type="button" class="btn ghost" id="favShare">Teilen</button>':'')+'</div>';
     items.forEach(it=>favsEl.appendChild(makeCard(it,{})));
-    const g=$("favGpx"); if(g) g.addEventListener("click",()=>download("abseits-merkliste.gpx",favGpx(items),"application/gpx+xml"));
+    const g=$("favGpx"); if(g) g.addEventListener("click",()=>exportGpx(items));
     const s=$("favShare"); if(s) s.addEventListener("click",()=>shareList(items));
   }
 
@@ -426,6 +426,18 @@
     const url=URL.createObjectURL(new Blob([text],{type:type||"text/plain"}));
     const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },1000);
+  }
+  // iPhone-tauglich: GPX als Datei teilen (iOS-Share-Sheet), sonst klassischer Download
+  async function exportGpx(items){
+    const gpx=favGpx(items), fname="abseits-merkliste.gpx", type="application/gpx+xml";
+    let file=null;
+    try{ file=new File([gpx],fname,{type}); }catch(e){}
+    if(file && navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file],title:"Abseits — Merkliste"}); }
+      catch(e){ /* vom Nutzer abgebrochen: nichts weiter tun */ }
+      return;
+    }
+    download(fname,gpx,type);
   }
   function favGpx(items){
     const wpts=items.map(it=>'  <wpt lat="'+(+it.lat).toFixed(6)+'" lon="'+(+it.lon).toFixed(6)+'">\n'+
