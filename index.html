@@ -214,6 +214,8 @@
         <p class="switch-note" id="contactNote" hidden>Achtung: blendet alle Einträge ohne Website/Telefon aus — betrifft v. a. Camping-, Wildnis- und Schutzhütten.</p>
         <label class="switch"><span class="lab">Airbnb / Booking ausblenden<small>Plattform-Links entfernen</small></span><input type="checkbox" id="hidePlatform" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Ketten ausblenden<small>B&amp;B, Ibis, Motel One …</small></span><input type="checkbox" id="hideChains" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Nur barrierefrei<small>Rollstuhlgerecht (laut OSM)</small></span><input type="checkbox" id="onlyAccessible"><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Nur mit WLAN<small>Internetzugang (laut OSM)</small></span><input type="checkbox" id="onlyWifi"><span class="ui"></span></label>
 
         <h2>Unterkunftstyp</h2>
         <label class="switch"><span class="lab">Pension / Gästehaus / B&amp;B</span><input type="checkbox" class="cat" data-cat="pension" checked><span class="ui"></span></label>
@@ -223,6 +225,10 @@
         <label class="switch"><span class="lab">Berghütte</span><input type="checkbox" class="cat" data-cat="huette" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Camping &amp; Hütten<small>Campingplätze, Stellplätze, Wildnis-/Schutzhütten</small></span><input type="checkbox" class="cat" data-cat="camping" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Sonstige / unklar</span><input type="checkbox" class="cat" data-cat="sonstige" checked><span class="ui"></span></label>
+
+        <h2>Karte</h2>
+        <label class="switch"><span class="lab">Beim Verschieben neu suchen<small>Sucht automatisch im neuen Kartenbereich</small></span><input type="checkbox" id="autoSearch"><span class="ui"></span></label>
+        <p class="switch-note" id="autoNote" hidden>Hinweis: Bei aktivem Google-Key löst jede Kartenbewegung eine neue Google-Suche aus (kann Kosten verursachen).</p>
 
         <h2>Google-API-Key</h2>
         <div class="keyrow">
@@ -284,6 +290,17 @@
   const phoneSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.1-1.1a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7A2 2 0 0 1 22 16.9z"/></svg>';
   const copySvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   const starSvg='<svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.5 9.7l5.9-.9z"/></svg>';
+  const mailSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>';
+
+  // Detail-Badges aus OSM-Tags (Sterne, Barrierefreiheit, WLAN)
+  function detailBadges(it){
+    const b=[];
+    if(it.stars) b.push('<span class="badge">'+'★'.repeat(Math.min(it.stars,5))+'</span>');
+    if(it.wheelchair==="yes"||it.wheelchair==="designated") b.push('<span class="badge web">♿ barrierefrei</span>');
+    else if(it.wheelchair==="limited") b.push('<span class="badge">♿ teilweise</span>');
+    if(it.wifi) b.push('<span class="badge">WLAN</span>');
+    return b.length?'<div class="badges">'+b.join("")+'</div>':'';
+  }
 
   const map=L.map("map",{scrollWheelZoom:true,zoomControl:true}).setView([50.55,9.67],11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
@@ -298,6 +315,7 @@
   const $=id=>document.getElementById(id);
   const appEl=$("app"), listEl=$("list"), qEl=$("q"), goBtn=$("go"), hereBtn=$("here"), nearBtn=$("near"), acEl=$("ac"), favsEl=$("favs");
   const useGoogle=$("useGoogle"), useOsm=$("useOsm"), onlyContact=$("onlyContact"), hidePlatform=$("hidePlatform"), hideChains=$("hideChains");
+  const onlyAccessible=$("onlyAccessible"), onlyWifi=$("onlyWifi"), autoSearch=$("autoSearch"), autoNote=$("autoNote");
   const keyEl=$("key"), saveKey=$("saveKey"), contactNote=$("contactNote");
 
   keyEl.value=localStorage.getItem("abseits_gkey")||"";
@@ -309,15 +327,19 @@
     document.querySelectorAll(".cat").forEach(c=>cats[c.dataset.cat]=c.checked);
     try{ localStorage.setItem("abseits_prefs",JSON.stringify({
       useGoogle:useGoogle.checked,useOsm:useOsm.checked,onlyContact:onlyContact.checked,
-      hidePlatform:hidePlatform.checked,hideChains:hideChains.checked,cats,view:appEl.dataset.view
+      hidePlatform:hidePlatform.checked,hideChains:hideChains.checked,
+      onlyAccessible:onlyAccessible.checked,onlyWifi:onlyWifi.checked,autoSearch:autoSearch.checked,
+      cats,view:appEl.dataset.view
     })); }catch(e){}
   }
   function loadPrefs(){
     let p; try{ p=JSON.parse(localStorage.getItem("abseits_prefs")||"{}"); }catch(e){ p={}; }
-    [["useGoogle",useGoogle],["useOsm",useOsm],["onlyContact",onlyContact],["hidePlatform",hidePlatform],["hideChains",hideChains]]
+    [["useGoogle",useGoogle],["useOsm",useOsm],["onlyContact",onlyContact],["hidePlatform",hidePlatform],["hideChains",hideChains],
+     ["onlyAccessible",onlyAccessible],["onlyWifi",onlyWifi],["autoSearch",autoSearch]]
       .forEach(([k,el])=>{ if(typeof p[k]==="boolean") el.checked=p[k]; });
     if(p.cats) document.querySelectorAll(".cat").forEach(c=>{ if(c.dataset.cat in p.cats) c.checked=p.cats[c.dataset.cat]; });
     contactNote.hidden=!onlyContact.checked;
+    autoNote.hidden=!autoSearch.checked;
     if(p.view&&p.view!=="filters") setView(p.view);
   }
 
@@ -355,7 +377,8 @@
       if(appEl.dataset.view==="favs") renderFavs();
     }else{
       const rec={key,name:it.name,kind:it.kind,cat:it.cat,lat:it.lat,lon:it.lon,
-        website:it.website||"",phone:it.phone||"",addr:it.addr||"",source:it.source||"",
+        website:it.website||"",phone:it.phone||"",email:it.email||"",addr:it.addr||"",source:it.source||"",
+        stars:it.stars||0,wheelchair:it.wheelchair||"",wifi:!!it.wifi,
         isPlatform:!!it.isPlatform,savedAt:Date.now()};
       favs.set(key,rec); idbWrite(s=>s.put(rec)).catch(()=>{});
       if(btn){ btn.classList.add("on"); btn.setAttribute("aria-pressed","true"); btn.title="Gemerkt"; }
@@ -448,8 +471,13 @@
       if(lat==null||lon==null) return null;
       const type=t.tourism||(t.amenity==="shelter"?"shelter":"");
       const website=t.website||t["contact:website"]||t.url||"";
+      const ia=(t.internet_access||t.wifi||"").toLowerCase();
       return {name:t.name||LABELS[type]||"Ohne Namen",kind:LABELS[type]||type,cat:catOf(type),lat,lon,website,
         phone:t.phone||t["contact:phone"]||t["contact:mobile"]||"",
+        email:t["contact:email"]||t.email||"",
+        stars:parseInt(t.stars,10)||0,
+        wheelchair:(t.wheelchair||"").toLowerCase(),
+        wifi:ia==="wlan"||ia==="yes"||ia==="wifi"||ia==="wlan;wired",
         addr:[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")+(t["addr:city"]?", "+t["addr:city"]:""),source:"osm"};
     }).filter(Boolean);
   }
@@ -499,6 +527,10 @@
         if(!dup.website&&it.website) dup.website=it.website;
         if(!dup.phone&&it.phone) dup.phone=it.phone;
         if(!dup.addr&&it.addr) dup.addr=it.addr;
+        if(!dup.email&&it.email) dup.email=it.email;
+        if(!dup.stars&&it.stars) dup.stars=it.stars;
+        if(!dup.wheelchair&&it.wheelchair) dup.wheelchair=it.wheelchair;
+        if(!dup.wifi&&it.wifi) dup.wifi=it.wifi;
         dup.isPlatform=dup.website&&PLATFORM.test(dup.website);
         dup.isChain=dup.isChain||it.isChain;
         if(dup.source!==it.source) dup.source="both";
@@ -535,6 +567,8 @@
       if(hidePlatform.checked&&r.isPlatform) return false;
       if(hideChains.checked&&r.isChain) return false;
       if(onlyContact.checked&&!r.website&&!r.phone) return false;
+      if(onlyAccessible.checked&&!(r.wheelchair==="yes"||r.wheelchair==="limited"||r.wheelchair==="designated")) return false;
+      if(onlyWifi.checked&&!r.wifi) return false;
       if(!cats.has(r.cat||"sonstige")) return false;
       return true;
     });
@@ -585,13 +619,15 @@
     acts.push('<button type="button" class="copybtn">'+copySvg+'GPS</button>');
     if(it.website&&!it.isPlatform) acts.push('<a href="'+esc(it.website)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>');
     if(it.phone) acts.push('<a href="tel:'+esc(it.phone.replace(/\s/g,""))+'" onclick="event.stopPropagation()">'+phoneSvg+'Anrufen</a>');
+    if(it.email) acts.push('<a href="mailto:'+esc(it.email)+'" onclick="event.stopPropagation()">'+mailSvg+'E-Mail</a>');
     acts.push('<button type="button" class="favbtn'+(fav?' on':'')+'" aria-pressed="'+(fav?'true':'false')+'" title="'+(fav?'Gemerkt':'Merken')+'">'+starSvg+(fav?'Gemerkt':'Merken')+'</button>');
 
     const card=document.createElement("div");
-    card.className="item"; card.dataset.id=opts.id||""; card.setAttribute("role","button"); card.tabIndex=0;
+    card.className="item"; card.dataset.id=opts.id||"";
     card.innerHTML='<h3>'+esc(it.name)+'</h3><div class="kind">'+esc(it.kind)+(it.addr?' · '+esc(it.addr):'')+'</div>'+
-      '<div class="actions">'+acts.join("")+'</div>';
+      detailBadges(it)+'<div class="actions">'+acts.join("")+'</div>';
     if(opts.id){
+      card.setAttribute("role","button"); card.tabIndex=0;
       card.addEventListener("click",()=>focusItem(opts.id));
       card.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); focusItem(opts.id); } });
     }
@@ -605,8 +641,10 @@
   function popup(it){
     let h='<h3>'+esc(it.name)+'</h3><div style="color:var(--muted);font-size:13px">'+esc(it.kind)+'</div>';
     if(it.addr) h+='<div style="font-size:13px;margin-top:4px">'+esc(it.addr)+'</div>';
+    h+=detailBadges(it);
     if(it.website&&!it.isPlatform) h+='<div style="margin-top:6px"><a href="'+esc(it.website)+'" target="_blank" rel="noopener">Website</a></div>';
     if(it.phone) h+='<div style="font-size:13px;margin-top:4px"><a href="tel:'+esc(it.phone.replace(/\s/g,""))+'">'+esc(it.phone)+'</a></div>';
+    if(it.email) h+='<div style="font-size:13px;margin-top:4px"><a href="mailto:'+esc(it.email)+'">'+esc(it.email)+'</a></div>';
     h+='<div style="font-size:13px;margin-top:6px"><a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener">Route</a></div>';
     h+='<div style="margin-top:6px"><button type="button" class="copybtn" data-lat="'+it.lat+'" data-lon="'+it.lon+'">GPS kopieren</button></div>';
     return h;
@@ -616,7 +654,8 @@
   function focusItem(id){
     const m=markers.find(x=>x.id===id); if(!m) return;
     setView("map");
-    setTimeout(()=>{ cluster.zoomToShowLayer(m.marker,()=>m.marker.openPopup()); },150);
+    markProg();
+    setTimeout(()=>{ markProg(); cluster.zoomToShowLayer(m.marker,()=>m.marker.openPopup()); },150);
   }
 
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -634,13 +673,14 @@
   function applyHash(){
     const o=parseHash();
     if(o.q){ qEl.value=o.q; doSearch(); return; }
-    if(o.lat&&o.lon){ setView("list"); map.setView([+o.lat,+o.lon],+o.z||13); fetchArea(); }
+    if(o.lat&&o.lon){ setView("list"); markProg(); map.setView([+o.lat,+o.lon],+o.z||13); fetchArea(); }
   }
 
   // Einen gefundenen Ort (Nominatim-Treffer) anzeigen
   async function searchResult(p){
     const bb=p.boundingbox.map(Number);
     const bounds=L.latLngBounds([[bb[0],bb[2]],[bb[1],bb[3]]]);
+    markProg();
     map.fitBounds(bounds);
     updateHash({q:qEl.value.trim()});
     await fetchArea(bounds);
@@ -697,7 +737,7 @@
     if(!navigator.geolocation){ setView("list"); setStatus("Standort wird vom Browser nicht unterstützt."); return; }
     setView("list"); setStatus("Standort wird ermittelt …");
     navigator.geolocation.getCurrentPosition(
-      pos=>{ const ll=L.latLng(pos.coords.latitude,pos.coords.longitude); map.setView(ll,14); updateHash({lat:ll.lat.toFixed(5),lon:ll.lng.toFixed(5),z:14}); fetchArea(ll.toBounds(6000)); },
+      pos=>{ const ll=L.latLng(pos.coords.latitude,pos.coords.longitude); markProg(); map.setView(ll,14); updateHash({lat:ll.lat.toFixed(5),lon:ll.lng.toFixed(5),z:14}); fetchArea(ll.toBounds(6000)); },
       err=>{ setStatus(err.code===1 ? "Standort-Zugriff abgelehnt. Erlaube ihn in den Einstellungen, oder tippe einen Ort ein." : "Standort nicht verfügbar — bitte Ort eingeben."); },
       {enableHighAccuracy:true,timeout:10000,maximumAge:60000}
     );
@@ -714,10 +754,21 @@
   });
   nearBtn.addEventListener("click",nearMe);
   hereBtn.addEventListener("click",()=>{ setView("list"); const c=map.getCenter(); updateHash({lat:c.lat.toFixed(5),lon:c.lng.toFixed(5),z:map.getZoom()}); fetchArea(); });
-  [onlyContact,hidePlatform,hideChains].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
+  [onlyContact,hidePlatform,hideChains,onlyAccessible,onlyWifi].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
   onlyContact.addEventListener("change",()=>{ contactNote.hidden=!onlyContact.checked; });
   document.querySelectorAll(".cat").forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
   [useGoogle,useOsm].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)fetchArea();}));
+  autoSearch.addEventListener("change",()=>{ autoNote.hidden=!autoSearch.checked; savePrefs(); });
+
+  // ---- Auto-Suche beim Kartenbewegen (Opt-in, entprellt) ----
+  let lastProg=0, autoTimer=null;
+  function markProg(){ lastProg=Date.now(); }       // programmatische Bewegungen markieren
+  map.on("moveend",()=>{
+    if(!autoSearch.checked || busy) return;
+    if(Date.now()-lastProg<1500) return;            // keine Suche nach eigener Karten-Navigation
+    clearTimeout(autoTimer);
+    autoTimer=setTimeout(()=>{ if(!busy){ const c=map.getCenter(); updateHash({lat:c.lat.toFixed(5),lon:c.lng.toFixed(5),z:map.getZoom()}); fetchArea(); } },900);
+  });
 
   // Merkliste laden, dann gespeicherte Einstellungen & Deep-Link anwenden
   favLoad().finally(()=>{ updateFavCount(); loadPrefs(); applyHash(); });
