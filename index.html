@@ -744,7 +744,7 @@
       const type=t.tourism||(t.amenity==="shelter"?"shelter":(t.amenity==="parking"?"caravan_parking":""));
       const website=t.website||t["contact:website"]||t.url||"";
       const ia=(t.internet_access||t.wifi||"").toLowerCase();
-      return {name:t.name||LABELS[type]||"Ohne Namen",kind:LABELS[type]||type,cat:catOf(type),lat,lon,website,
+      return {name:t.name||LABELS[type]||"Ohne Namen",named:!!t.name,kind:LABELS[type]||type,cat:catOf(type),lat,lon,website,
         phone:t.phone||t["contact:phone"]||t["contact:mobile"]||"",
         email:t["contact:email"]||t.email||"",
         stars:parseInt(t.stars,10)||0,
@@ -852,7 +852,7 @@
       const loc=p.location, lat=typeof loc?.lat==="function"?loc.lat():loc?.lat, lon=typeof loc?.lng==="function"?loc.lng():loc?.lng;
       if(lat==null||lon==null) return null;
       const type=p.primaryType||(p.types&&p.types[0])||"lodging";
-      return {name:p.displayName||"Ohne Namen",kind:LABELS[type]||"Unterkunft",cat:catOf(type),lat,lon,
+      return {name:p.displayName||"Ohne Namen",named:!!p.displayName,kind:LABELS[type]||"Unterkunft",cat:catOf(type),lat,lon,
         website:p.websiteURI||"",phone:p.nationalPhoneNumber||"",addr:p.formattedAddress||"",source:"google"};
     }).filter(Boolean);
   }
@@ -869,7 +869,7 @@
       const lat=p.location?.latitude, lon=p.location?.longitude;
       if(lat==null||lon==null) return null;
       const type=p.primaryType||(p.types&&p.types[0])||"lodging";
-      return {name:(p.displayName&&p.displayName.text)||"Ohne Namen",kind:LABELS[type]||"Unterkunft",cat:catOf(type),lat,lon,
+      return {name:(p.displayName&&p.displayName.text)||"Ohne Namen",named:!!(p.displayName&&p.displayName.text),kind:LABELS[type]||"Unterkunft",cat:catOf(type),lat,lon,
         website:p.websiteUri||"",phone:p.nationalPhoneNumber||"",addr:p.formattedAddress||"",source:"google"};
     }).filter(Boolean);
   }
@@ -883,10 +883,16 @@
       it.isChain=CHAIN.test(it.name||"")||(it.website&&CHAIN.test(it.website));
       const dup=out.find(o=>{
         const close=map.distance([o.lat,o.lon],[it.lat,it.lon])<80;
-        const same=norm(o.name)&&norm(o.name)===norm(it.name);
-        return close&&(same||!o.name||!it.name);
+        // Nur bei echtem (nicht Fallback-Label) gleichem Namen zusammenführen …
+        const same=o.named&&it.named&&norm(o.name)===norm(it.name);
+        // … oder quellenübergreifend, wenn (mind.) einer keinen echten Namen hat
+        // (OSM ↔ Google = vermutlich derselbe Ort). Zwei namenlose Treffer
+        // derselben Quelle bleiben getrennt — sie sind meist verschiedene Plätze.
+        const crossUnnamed=(!o.named||!it.named)&&o.source!==it.source;
+        return close&&(same||crossUnnamed);
       });
       if(dup){
+        if(!dup.named&&it.named){ dup.name=it.name; dup.named=true; } // echten Namen übernehmen
         if(!dup.website&&it.website) dup.website=it.website;
         if(!dup.phone&&it.phone) dup.phone=it.phone;
         if(!dup.addr&&it.addr) dup.addr=it.addr;
