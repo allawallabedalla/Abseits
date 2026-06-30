@@ -952,14 +952,15 @@
     origin=b.getCenter(); // Bezugspunkt für Entfernung (Suchort bzw. eigener Standort)
     const tasks=[], info={counts:[],errs:[]};
     try{
+      // r.length am jeweiligen Abfrage-Limit => vermutlich abgeschnitten (info.truncated)
       if(mode==="entdecken"){
         // Entdecken: nur OpenStreetMap (kostenlos, ohne Key) — POIs in der Umgebung
-        tasks.push(fetchPoi(b).then(r=>{info.counts.push("Orte: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
+        tasks.push(fetchPoi(b).then(r=>{info.counts.push("Orte: "+r.length);if(r.length>=300)info.truncated=true;return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
       } else {
-        if(useOsm.checked) tasks.push(fetchOsm(b).then(r=>{info.counts.push("OSM: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
+        if(useOsm.checked) tasks.push(fetchOsm(b).then(r=>{info.counts.push("OSM: "+r.length);if(r.length>=250)info.truncated=true;return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
         if(useGoogle.checked){
           const gp=PROXY_URL?fetchGoogleProxy(b):(key?fetchGoogle(b,key):null);
-          if(gp) tasks.push(gp.then(r=>{info.counts.push("Google: "+r.length);return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
+          if(gp) tasks.push(gp.then(r=>{info.counts.push("Google: "+r.length);if(r.length>=20)info.truncated=true;return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
           else info.errs.push("Google: kein Key (Tab „Filter“)");
         }
       }
@@ -1026,7 +1027,8 @@
     }
     const noun=mode==="entdecken"?"Ziele":"Unterkünfte";
     if(!items.length){ listEl.innerHTML=diag+'<p class="status">Keine passenden '+noun+'. Tipp: im Tab „Filter“ Schalter lockern, oder Karte verschieben und „Diesen Kartenbereich durchsuchen“.</p>'; return; }
-    listEl.innerHTML=diag+'<p class="count">'+items.length+' '+noun+'</p>';
+    const more=lastInfo.truncated?' · <span style="text-transform:none;letter-spacing:0;color:var(--ochre)">evtl. weitere — Ausschnitt verkleinern</span>':'';
+    listEl.innerHTML=diag+'<p class="count">'+items.length+' '+noun+more+'</p>';
     items.forEach((it,i)=>{
       const id="it"+i;
       const color=mode==="entdecken" ? (POI_COLORS[it.cat]||MC.slate)
