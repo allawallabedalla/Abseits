@@ -1,12 +1,16 @@
 // Abseits PWA Service Worker
-const CACHE = "abseits-v15";
+const CACHE = "abseits-v16";
 const SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./icon-180.png",
   "./icon-192.png",
-  "./icon-512.png"
+  "./icon-512.png",
+  "./fonts/poppins-400.woff2",
+  "./fonts/poppins-500.woff2",
+  "./fonts/poppins-600.woff2",
+  "./fonts/poppins-700.woff2"
 ];
 
 self.addEventListener("install", e => {
