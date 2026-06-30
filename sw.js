@@ -1,5 +1,5 @@
 // Abseits PWA Service Worker
-const CACHE = "abseits-v13";
+const CACHE = "abseits-v14";
 const SHELL = [
   "./",
   "./index.html",
