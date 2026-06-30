@@ -282,6 +282,7 @@
         <label class="switch"><span class="lab">Ketten ausblenden<small>B&amp;B, Ibis, Motel One …</small></span><input type="checkbox" id="hideChains" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Nur barrierefrei<small>Rollstuhlgerecht (laut OSM)</small></span><input type="checkbox" id="onlyAccessible"><span class="ui"></span></label>
         <label class="switch"><span class="lab">Nur mit WLAN<small>Internetzugang (laut OSM)</small></span><input type="checkbox" id="onlyWifi"><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Nur gebührenfrei<small>Kostenpflichtige ausblenden (v. a. Stellplätze, laut OSM)</small></span><input type="checkbox" id="onlyFree"><span class="ui"></span></label>
 
         <h2>Unterkunftstyp</h2>
         <label class="switch"><span class="lab">Pension / Gästehaus / B&amp;B</span><input type="checkbox" class="cat" data-cat="pension" checked><span class="ui"></span></label>
@@ -457,8 +458,10 @@
   function detailBadges(it){
     const b=[];
     if(it.ele) b.push('<span class="badge">↑ '+Math.round(it.ele)+' m</span>');
-    if(it.fee==="yes") b.push('<span class="badge flag">Eintritt</span>');
-    else if(it.fee==="no") b.push('<span class="badge web">Eintritt frei</span>');
+    // Wording: bei POIs „Eintritt“, bei Unterkünften/Plätzen „Gebühr“
+    const feeYes=it.poi?"Eintritt":"Gebühr", feeNo=it.poi?"Eintritt frei":"gebührenfrei";
+    if(it.fee==="yes") b.push('<span class="badge flag">'+feeYes+'</span>');
+    else if(it.fee==="no") b.push('<span class="badge web">'+feeNo+'</span>');
     if(it.stars) b.push('<span class="badge">'+'★'.repeat(Math.min(it.stars,5))+'</span>');
     if(it.wheelchair==="yes"||it.wheelchair==="designated") b.push('<span class="badge web">♿ barrierefrei</span>');
     else if(it.wheelchair==="limited") b.push('<span class="badge">♿ teilweise</span>');
@@ -487,7 +490,7 @@
   const $=id=>document.getElementById(id);
   const appEl=$("app"), listEl=$("list"), qEl=$("q"), goBtn=$("go"), hereBtn=$("here"), nearBtn=$("near"), acEl=$("ac"), favsEl=$("favs");
   const useGoogle=$("useGoogle"), useOsm=$("useOsm"), onlyContact=$("onlyContact"), hidePlatform=$("hidePlatform"), hideChains=$("hideChains");
-  const onlyAccessible=$("onlyAccessible"), onlyWifi=$("onlyWifi"), autoSearch=$("autoSearch"), autoNote=$("autoNote");
+  const onlyAccessible=$("onlyAccessible"), onlyWifi=$("onlyWifi"), onlyFree=$("onlyFree"), autoSearch=$("autoSearch"), autoNote=$("autoNote");
   const keyEl=$("key"), saveKey=$("saveKey"), contactNote=$("contactNote");
   const poiFree=$("poiFree"), poiNature=$("poiNature"), poiNamed=$("poiNamed"), tagline=$("tagline");
 
@@ -509,7 +512,7 @@
     try{ localStorage.setItem("abseits_prefs",JSON.stringify({
       useGoogle:useGoogle.checked,useOsm:useOsm.checked,onlyContact:onlyContact.checked,
       hidePlatform:hidePlatform.checked,hideChains:hideChains.checked,
-      onlyAccessible:onlyAccessible.checked,onlyWifi:onlyWifi.checked,autoSearch:autoSearch.checked,
+      onlyAccessible:onlyAccessible.checked,onlyWifi:onlyWifi.checked,onlyFree:onlyFree.checked,autoSearch:autoSearch.checked,
       poiFree:poiFree.checked,poiNature:poiNature.checked,poiNamed:poiNamed.checked,
       cats,pcats,mode,view:appEl.dataset.view
     })); }catch(e){}
@@ -517,7 +520,7 @@
   function loadPrefs(){
     let p; try{ p=JSON.parse(localStorage.getItem("abseits_prefs")||"{}"); }catch(e){ p={}; }
     [["useGoogle",useGoogle],["useOsm",useOsm],["onlyContact",onlyContact],["hidePlatform",hidePlatform],["hideChains",hideChains],
-     ["onlyAccessible",onlyAccessible],["onlyWifi",onlyWifi],["autoSearch",autoSearch],
+     ["onlyAccessible",onlyAccessible],["onlyWifi",onlyWifi],["onlyFree",onlyFree],["autoSearch",autoSearch],
      ["poiFree",poiFree],["poiNature",poiNature],["poiNamed",poiNamed]]
       .forEach(([k,el])=>{ if(typeof p[k]==="boolean") el.checked=p[k]; });
     if(p.cats) document.querySelectorAll(".cat").forEach(c=>{ if(c.dataset.cat in p.cats) c.checked=p.cats[c.dataset.cat]; });
@@ -744,6 +747,7 @@
         stars:parseInt(t.stars,10)||0,
         wheelchair:(t.wheelchair||"").toLowerCase(),
         wifi:ia==="wlan"||ia==="yes"||ia==="wifi"||ia==="wlan;wired",
+        fee:(t.fee||"").toLowerCase(),
         addr:[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")+(t["addr:city"]?", "+t["addr:city"]:""),source:"osm"};
     }).filter(Boolean);
   }
@@ -998,6 +1002,7 @@
         if(onlyContact.checked&&!r.website&&!r.phone) return false;
         if(onlyAccessible.checked&&!(r.wheelchair==="yes"||r.wheelchair==="limited"||r.wheelchair==="designated")) return false;
         if(onlyWifi.checked&&!r.wifi) return false;
+        if(onlyFree.checked&&r.fee==="yes") return false;
         if(!cats.has(r.cat||"sonstige")) return false;
         return true;
       });
@@ -1201,7 +1206,7 @@
   });
   nearBtn.addEventListener("click",nearMe);
   hereBtn.addEventListener("click",()=>{ setView("list"); const c=map.getCenter(); updateHash({lat:c.lat.toFixed(5),lon:c.lng.toFixed(5),z:map.getZoom()}); fetchArea(); });
-  [onlyContact,hidePlatform,hideChains,onlyAccessible,onlyWifi].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
+  [onlyContact,hidePlatform,hideChains,onlyAccessible,onlyWifi,onlyFree].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
   onlyContact.addEventListener("change",()=>{ contactNote.hidden=!onlyContact.checked; });
   document.querySelectorAll(".cat").forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
   [poiFree,poiNature,poiNamed].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
