@@ -784,8 +784,7 @@
         addr:[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")+(t["addr:city"]?", "+t["addr:city"]:""),
         source:"osm"};
     }).filter(Boolean);
-    await enrichImages(list);   // Bilder über Wikidata (P18) nachladen, wo das OSM-Tag fehlt
-    return list;
+    return list;   // Wikidata-Bilder werden nach dem Rendern nachgeladen (enrichAndPaint)
   }
   // Holt fehlende POI-Bilder gebündelt über die Wikidata-API (P18 -> Wikimedia Commons).
   // CORS-fähig (origin=*); Fehler sind unkritisch, Bilder bleiben optional.
@@ -810,6 +809,28 @@
         });
       }catch(e){ /* Bilder sind optional */ }
     }
+  }
+  // Nach dem Rendern: fehlende Bilder im Hintergrund holen und nur die
+  // betroffenen Karten/Popups nachträglich ergänzen (blockiert die Suche nicht).
+  async function enrichAndPaint(){
+    if(mode!=="entdecken") return;
+    const mine=results, need=results.filter(it=>!it.image && it.qid);
+    if(!need.length) return;
+    await enrichImages(need);
+    if(results!==mine) return;  // zwischenzeitlich neue Suche -> nichts mehr malen
+    const cards=[...listEl.querySelectorAll(".item")];
+    need.forEach(it=>{
+      const url=safeUrl(it.image); if(!url) return;
+      const card=cards.find(c=>c.dataset.key===favKey(it));
+      if(card && !card.querySelector(".thumb")){
+        const img=document.createElement("img");
+        img.className="thumb"; img.loading="lazy"; img.alt=""; img.src=url;
+        img.onerror=function(){ this.remove(); };
+        card.insertBefore(img,card.firstChild);
+      }
+      const m=markers.find(x=>x.it===it);
+      if(m) m.marker.setPopupContent(popup(it));
+    });
   }
   // Thumbnail aus OSM-Tags: Wikimedia Commons (zuverlässig) oder direkter image-Link
   function poiImage(t){
@@ -948,6 +969,7 @@
       results = mode==="entdecken" ? dedupePoi([].concat(...parts)) : merge([].concat(...parts));
       lastInfo=info;
       render();
+      if(mode==="entdecken") enrichAndPaint();   // Bilder im Hintergrund nachtragen
     }catch(e){
       info.errs.push("Fehler: "+(e&&e.message||e));
       lastInfo=info; render();
@@ -1021,7 +1043,7 @@
       marker.__it=it;
       marker.bindPopup(popup(it));
       cluster.addLayer(marker);
-      markers.push({marker,id});
+      markers.push({marker,id,it});
       listEl.appendChild(makeCard(it,{id}));
     });
   }
@@ -1045,7 +1067,7 @@
     const imgUrl=safeUrl(it.image);
     const thumb=imgUrl?'<img class="thumb" loading="lazy" src="'+esc(imgUrl)+'" alt="" onerror="this.remove()">':'';
     const card=document.createElement("div");
-    card.className="item"; card.dataset.id=opts.id||"";
+    card.className="item"; card.dataset.id=opts.id||""; card.dataset.key=favKey(it);
     card.innerHTML=thumb+'<h3>'+esc(it.name)+'</h3><div class="kind">'+esc(it.kind)+(it.addr?' · '+esc(it.addr):'')+'</div>'+
       detailBadges(it)+'<div class="actions">'+acts.join("")+'</div>';
     if(opts.id){
