@@ -81,6 +81,38 @@
   .app[data-mode="schlafen"] .only-entdecken{display:none}
   .app[data-mode="entdecken"] .only-schlafen{display:none}
 
+  /* ---- Info-Button + Sheet ---- */
+  header{position:relative}
+  .infobtn{position:absolute;top:calc(8px + var(--safe-t));right:12px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--muted);cursor:pointer;border-radius:10px}
+  .infobtn:active{background:var(--card)}
+  .infobtn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .infobtn svg{width:23px;height:23px}
+  .sheet-backdrop{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+  .sheet-backdrop[hidden]{display:none}
+  .sheet{background:var(--paper);width:100%;max-width:560px;max-height:90dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:18px 18px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.32)}
+  .sheet-head{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 16px 12px;background:var(--paper);border-bottom:1px solid var(--line)}
+  .sheet-head h2{margin:0;font-family:"Poppins",sans-serif;font-size:18px;font-weight:700;letter-spacing:-.01em}
+  .sheet-close{border:0;background:transparent;color:var(--muted);font-size:26px;line-height:1;width:40px;height:40px;border-radius:10px;cursor:pointer}
+  .sheet-close:active{background:var(--card)}
+  .sheet-close:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .sheet-body{padding:6px 18px calc(26px + var(--safe-b))}
+  .sheet-body h3{font-family:"Poppins",sans-serif;font-size:12.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--slate);margin:20px 0 6px;font-weight:600}
+  .sheet-body p{font-size:14.5px;line-height:1.55;margin:6px 0}
+  .sheet-body ul{margin:6px 0;padding-left:2px;list-style:none}
+  .sheet-body li{font-size:14.5px;line-height:1.5;margin:9px 0;padding-left:24px;position:relative}
+  .sheet-body li b{color:var(--ink)}
+  .sheet-body li .ic{position:absolute;left:0;top:1px;color:var(--pine)}
+  .sheet-body li .ic svg{width:17px;height:17px}
+  .sheet-body .disc{font-size:12.8px;line-height:1.5;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-top:8px}
+  .sheet-body .disc a{color:var(--pine)}
+  .sheet-body .ver{font-size:12.5px;color:var(--slate);margin-top:18px}
+
+  /* ---- POI-Thumbnails ---- */
+  .item .thumb{width:100%;height:160px;object-fit:cover;border-radius:10px;margin-bottom:10px;display:block;background:var(--card)}
+  .leaflet-popup-content .popthumb{width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block;background:var(--card)}
+
+  @media (min-width:760px){ .sheet-backdrop{align-items:center} .sheet{border-radius:18px} }
+
   /* ---- Segmented control ---- */
   .seg{display:flex;margin:10px 16px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
   .seg button{flex:1;border:0;border-right:1px solid var(--line);background:transparent;min-height:48px;font-weight:600;cursor:pointer;color:var(--ink)}
@@ -192,6 +224,9 @@
   <header>
     <span class="brand">Abseits<span class="dot">.</span></span>
     <span class="tag" id="tagline">Unterkünfte, die ihren eigenen Weg gehen — Google + OpenStreetMap.</span>
+    <button id="infoBtn" class="infobtn" aria-label="Über die App" title="Über Abseits">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>
+    </button>
   </header>
 
   <nav class="modes" role="tablist" aria-label="Modus">
@@ -271,7 +306,8 @@
         <label class="switch"><span class="lab">Nur mit Namen<small>Unbenannte Punkte ausblenden</small></span><input type="checkbox" id="poiNamed"><span class="ui"></span></label>
 
         <h2>Was entdecken?</h2>
-        <label class="switch"><span class="lab">Natur &amp; Aussicht<small>Gipfel, Aussichtspunkte, Wasserfälle, Höhlen</small></span><input type="checkbox" class="pcat" data-pcat="natur" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Natur &amp; Aussicht<small>Aussichtspunkte, Wasserfälle, Höhlen</small></span><input type="checkbox" class="pcat" data-pcat="natur" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Gipfel<small>Berg- &amp; Hügelspitzen (oft sehr viele)</small></span><input type="checkbox" class="pcat" data-pcat="gipfel" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Wasser &amp; Baden<small>Seen, Badestellen, Quellen</small></span><input type="checkbox" class="pcat" data-pcat="wasser" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Kultur &amp; Geschichte<small>Burgen, Ruinen, Denkmäler</small></span><input type="checkbox" class="pcat" data-pcat="kultur" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Sehenswürdigkeiten<small>Türme, Museen, Tierparks</small></span><input type="checkbox" class="pcat" data-pcat="freizeit" checked><span class="ui"></span></label>
@@ -295,13 +331,39 @@
           Tipp: Key auf Referrer <code>http://localhost:8000/*</code> beschränken und Budget-Limit setzen. Ohne Key läuft nur OSM.
         </p>
         </div>
-
-        <h2>App installieren</h2>
-        <p class="hint">
-          Am iPhone in Safari öffnen → <b>Teilen-Symbol</b> → <b>„Zum Home-Bildschirm"</b>. Danach startet „Abseits" als eigenes App-Icon im Vollbild — ohne Browser-Leiste.
-          Funktioniert, sobald die Seite über <code>https</code> (z. B. GitHub Pages) oder <code>localhost</code> läuft.
-        </p>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- INFO-SHEET (über das ⓘ im Header) -->
+<div class="sheet-backdrop" id="infoSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+    <div class="sheet-head">
+      <h2 id="infoTitle">Über Abseits</h2>
+      <button class="sheet-close" id="infoClose" aria-label="Schließen">&times;</button>
+    </div>
+    <div class="sheet-body">
+      <p>Abseits hilft dir, <b>Unterkünfte und Ziele abseits der großen Plattformen</b> zu finden — auf Basis von OpenStreetMap und Google. Keine Anmeldung, kein Konto, nichts wird auf Servern gespeichert.</p>
+
+      <h3>So funktioniert's</h3>
+      <ul>
+        <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5"/><path d="M3 18v3M21 18v3M3 13V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4"/></svg></span><b>Schlafen:</b> Ort eingeben oder Standort nutzen — Abseits zeigt Pensionen, Gästehäuser, Ferienwohnungen, Hütten &amp; Campingplätze. Über <b>Filter</b> Quellen, Typen sowie Plattform-/Ketten-Häuser steuern.</li>
+        <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M16 8l-2.5 5.5L8 16l2.5-5.5z"/></svg></span><b>Entdecken:</b> spannende Ziele in der Umgebung — Aussichtspunkte, Gipfel, Wasserfälle, Burgen, Badestellen, Picknick- &amp; Feuerstellen. Filter wie <b>„ohne Eintritt"</b> und <b>„naturnah"</b>.</li>
+        <li><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.5 9.7l5.9-.9z"/></svg></span><b>Merkliste:</b> Häuser &amp; Ziele mit ★ merken — bleiben offline gespeichert, als <b>GPX</b> exportierbar oder teilbar.</li>
+        <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span><b>Route &amp; GPS:</b> pro Eintrag direkt zur Navigation (Apple/Google Maps) oder Koordinaten kopieren — z. B. für Komoot.</li>
+      </ul>
+
+      <h3>Als App installieren</h3>
+      <p>Am iPhone in <b>Safari</b> öffnen → <b>Teilen-Symbol</b> → <b>„Zum Home-Bildschirm"</b>. Danach startet Abseits als eigenes App-Icon im Vollbild — ohne Browser-Leiste und auch offline nutzbar.</p>
+
+      <h3>Datenquellen &amp; Lizenz</h3>
+      <p class="disc">
+        Karten- und Ortsdaten: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende (ODbL). Unterkünfte teils über Google. Bilder ggf. von Wikimedia Commons, weiterführende Infos von Wikipedia.<br>
+        Alle Angaben <b>ohne Gewähr</b> — Preise, Öffnungszeiten und Verfügbarkeit bitte direkt beim Anbieter prüfen. Abseits speichert Merkliste &amp; Einstellungen nur lokal auf deinem Gerät und nutzt kein Tracking.
+      </p>
+
+      <p class="ver">Abseits · Entdecken-Update (2026)</p>
     </div>
   </div>
 </div>
@@ -344,8 +406,8 @@
   // [Schlüssel, Wert, Kategorie, Label, special?] — special=eigene Overpass-Zeile statt Sammel-Regex
   const POI_DEFS=[
     ["tourism","viewpoint","natur","Aussichtspunkt"],
-    ["natural","peak","natur","Gipfel"],
-    ["natural","volcano","natur","Vulkan"],
+    ["natural","peak","gipfel","Gipfel"],
+    ["natural","volcano","gipfel","Vulkan"],
     ["natural","waterfall","natur","Wasserfall"],
     ["waterway","waterfall","natur","Wasserfall"],
     ["natural","cave_entrance","natur","Höhle"],
@@ -383,7 +445,7 @@
   // Marker-Farben einmal aus den CSS-Variablen lesen (statt pro Treffer)
   const cssVar=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const MC={pine:cssVar("--pine"),ochre:cssVar("--ochre"),flag:cssVar("--flag"),slate:cssVar("--slate"),gbl:cssVar("--gbl")};
-  const POI_COLORS={natur:MC.pine,wasser:MC.gbl,kultur:MC.ochre,freizeit:MC.slate,rast:MC.flag};
+  const POI_COLORS={natur:MC.pine,gipfel:MC.pine,wasser:MC.gbl,kultur:MC.ochre,freizeit:MC.slate,rast:MC.flag};
 
   // Icons (geteilt von Listen-, Karten- und Merkliste-Rendering)
   const pinSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
@@ -505,7 +567,7 @@
       const rec={key,name:it.name,kind:it.kind,cat:it.cat,lat:it.lat,lon:it.lon,
         website:it.website||"",phone:it.phone||"",email:it.email||"",addr:it.addr||"",source:it.source||"",
         stars:it.stars||0,wheelchair:it.wheelchair||"",wifi:!!it.wifi,
-        ele:it.ele||0,fee:it.fee||"",poi:!!it.poi,
+        ele:it.ele||0,fee:it.fee||"",poi:!!it.poi,image:it.image||"",wiki:it.wiki||"",
         isPlatform:!!it.isPlatform,savedAt:Date.now()};
       favs.set(key,rec); idbWrite(s=>s.put(rec)).catch(()=>{});
       if(btn){ btn.classList.add("on"); btn.setAttribute("aria-pressed","true"); btn.title="Gemerkt"; btn.setAttribute("aria-label","Gemerkt"); }
@@ -602,6 +664,15 @@
     savePrefs();
   }
   document.querySelectorAll(".modes button").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
+
+  // ---- Info-Sheet (ⓘ im Header) ----
+  const infoBtn=$("infoBtn"), infoSheet=$("infoSheet"), infoClose=$("infoClose");
+  function openInfo(){ infoSheet.hidden=false; document.body.style.overflow="hidden"; infoClose.focus(); }
+  function closeInfo(){ infoSheet.hidden=true; document.body.style.overflow=""; infoBtn.focus(); }
+  infoBtn.addEventListener("click",openInfo);
+  infoClose.addEventListener("click",closeInfo);
+  infoSheet.addEventListener("click",e=>{ if(e.target===infoSheet) closeInfo(); });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!infoSheet.hidden) closeInfo(); });
 
   function setStatus(m){listEl.innerHTML='<p class="status">'+m+'</p>';}
   function clearMarkers(){cluster.clearLayers();markers=[];}
@@ -703,9 +774,26 @@
         email:t["contact:email"]||t.email||"",
         fee:(t.fee||"").toLowerCase(),
         ele:parseFloat(t.ele)||0,
+        image:poiImage(t), wiki:poiWiki(t),
         addr:[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")+(t["addr:city"]?", "+t["addr:city"]:""),
         source:"osm"};
     }).filter(Boolean);
+  }
+  // Thumbnail aus OSM-Tags: Wikimedia Commons (zuverlässig) oder direkter image-Link
+  function poiImage(t){
+    const wm=t.wikimedia_commons||"";
+    if(/^File:/i.test(wm)) return "https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(wm.replace(/^File:/i,""))+"?width=480";
+    const img=t.image||"";
+    return /^https:\/\//i.test(img) ? img : "";
+  }
+  // „Mehr Infos“-Link: Wikipedia (sprachspezifisch) oder Wikidata
+  function poiWiki(t){
+    if(t.wikipedia){
+      const i=String(t.wikipedia).indexOf(":");
+      if(i>0) return "https://"+t.wikipedia.slice(0,i)+".wikipedia.org/wiki/"+encodeURIComponent(t.wikipedia.slice(i+1).replace(/ /g,"_"));
+    }
+    if(t.wikidata) return "https://www.wikidata.org/wiki/"+encodeURIComponent(t.wikidata);
+    return "";
   }
 
   // ---- Google laden + Places ----
@@ -792,6 +880,8 @@
         if(!dup.website&&it.website) dup.website=it.website;
         if(!dup.ele&&it.ele) dup.ele=it.ele;
         if(!dup.fee&&it.fee) dup.fee=it.fee;
+        if(!dup.image&&it.image) dup.image=it.image;
+        if(!dup.wiki&&it.wiki) dup.wiki=it.wiki;
       } else out.push({...it});
     });
     return out;
@@ -829,7 +919,7 @@
   }
   function visiblePoi(){
     const cats=activeCats(".pcat");
-    const nature=new Set(["natur","wasser"]);
+    const nature=new Set(["natur","gipfel","wasser"]);
     return results.filter(r=>{
       if(poiFree.checked&&r.fee==="yes") return false;
       if(poiNature.checked&&!nature.has(r.cat)) return false;
@@ -900,14 +990,16 @@
     acts.push('<a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+pinSvg+'Route</a>');
     acts.push('<button type="button" class="copybtn">'+copySvg+'GPS</button>');
     if(it.website&&!it.isPlatform) acts.push('<a href="'+esc(it.website)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>');
+    if(it.wiki) acts.push('<a href="'+esc(it.wiki)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>');
     if(it.phone) acts.push('<a href="tel:'+esc(it.phone.replace(/\s/g,""))+'" class="iconact" title="Anrufen" aria-label="Anrufen" onclick="event.stopPropagation()">'+phoneSvg+'</a>');
     if(it.email) acts.push('<a href="mailto:'+esc(it.email)+'" onclick="event.stopPropagation()">'+mailSvg+'E-Mail</a>');
     if(canShare) acts.push('<button type="button" class="iconact sharebtn" title="Teilen" aria-label="Teilen">'+shareSvg+'</button>');
     acts.push('<button type="button" class="iconact favbtn'+(fav?' on':'')+'" aria-pressed="'+(fav?'true':'false')+'" title="'+(fav?'Gemerkt':'Merken')+'" aria-label="'+(fav?'Gemerkt':'Merken')+'">'+starSvg+'</button>');
 
+    const thumb=it.image?'<img class="thumb" loading="lazy" src="'+esc(it.image)+'" alt="" onerror="this.remove()">':'';
     const card=document.createElement("div");
     card.className="item"; card.dataset.id=opts.id||"";
-    card.innerHTML='<h3>'+esc(it.name)+'</h3><div class="kind">'+esc(it.kind)+(it.addr?' · '+esc(it.addr):'')+'</div>'+
+    card.innerHTML=thumb+'<h3>'+esc(it.name)+'</h3><div class="kind">'+esc(it.kind)+(it.addr?' · '+esc(it.addr):'')+'</div>'+
       detailBadges(it)+'<div class="actions">'+acts.join("")+'</div>';
     if(opts.id){
       card.setAttribute("role","button"); card.tabIndex=0;
@@ -924,10 +1016,13 @@
   }
 
   function popup(it){
-    let h='<h3>'+esc(it.name)+'</h3><div style="color:var(--muted);font-size:13px">'+esc(it.kind)+'</div>';
+    let h='';
+    if(it.image) h+='<img class="popthumb" loading="lazy" src="'+esc(it.image)+'" alt="" onerror="this.remove()">';
+    h+='<h3>'+esc(it.name)+'</h3><div style="color:var(--muted);font-size:13px">'+esc(it.kind)+'</div>';
     if(it.addr) h+='<div style="font-size:13px;margin-top:4px">'+esc(it.addr)+'</div>';
     h+=detailBadges(it);
     if(it.website&&!it.isPlatform) h+='<div style="margin-top:6px"><a href="'+esc(it.website)+'" target="_blank" rel="noopener">Website</a></div>';
+    if(it.wiki) h+='<div style="margin-top:6px"><a href="'+esc(it.wiki)+'" target="_blank" rel="noopener">Wikipedia</a></div>';
     if(it.phone) h+='<div style="font-size:13px;margin-top:4px"><a href="tel:'+esc(it.phone.replace(/\s/g,""))+'">'+esc(it.phone)+'</a></div>';
     if(it.email) h+='<div style="font-size:13px;margin-top:4px"><a href="mailto:'+esc(it.email)+'">'+esc(it.email)+'</a></div>';
     h+='<div style="font-size:13px;margin-top:6px"><a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener">Route</a></div>';
