@@ -47,7 +47,7 @@
   .app{display:flex;flex-direction:column;height:100dvh}
 
   /* ---- Kopf + Suche ---- */
-  header{padding:calc(12px + var(--safe-t)) 16px 10px;border-bottom:1px solid var(--line)}
+  header{position:relative;padding:calc(12px + var(--safe-t)) 16px 10px;border-bottom:1px solid var(--line)}
   .brand{font-family:"Poppins",sans-serif;font-weight:700;font-size:21px;letter-spacing:-.02em}
   .brand .dot{color:var(--pine)}
   .tag{display:none;color:var(--muted);font-size:13px;margin-left:10px}
@@ -82,7 +82,6 @@
   .app[data-mode="entdecken"] .only-schlafen{display:none}
 
   /* ---- Info-Button + Sheet ---- */
-  header{position:relative}
   .infobtn{position:absolute;top:calc(8px + var(--safe-t));right:12px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--muted);cursor:pointer;border-radius:10px}
   .infobtn:active{background:var(--card)}
   .infobtn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
@@ -147,13 +146,8 @@
   .badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
   .badge{font-size:12px;padding:3px 9px;border-radius:20px;border:1px solid var(--line);white-space:nowrap}
   .badge.web{border-color:var(--pine);color:var(--pine)}
-  .badge.tel{border-color:var(--ochre);color:var(--ochre)}
-  .badge.none{color:var(--slate)}
   .badge.flag{border-color:var(--flag);color:var(--flag)}
-  .badge.src{border-style:dashed}
-  .badge.g{border-color:var(--gbl);color:var(--gbl)}
   .item a{color:var(--pine);text-decoration:none;font-size:14px;word-break:break-all}
-  .meta{font-size:14px;color:var(--muted)}
   .actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:8px}
   .actions .dist{font-size:13px;color:var(--muted);font-weight:500}
   .actions a{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:500;padding:3px 0}
@@ -530,7 +524,7 @@
     if(p.pcats) document.querySelectorAll(".pcat").forEach(c=>{ if(c.dataset.pcat in p.pcats) c.checked=p.pcats[c.dataset.pcat]; });
     contactNote.hidden=!onlyContact.checked;
     autoNote.hidden=!autoSearch.checked;
-    if(p.mode==="entdecken"){ setMode("entdecken"); setStatus(modeIntro()); }
+    if(p.mode==="entdecken") setMode("entdecken");  // setzt selbst den Intro-Status
     if(p.view&&p.view!=="filters") setView(p.view);
   }
 
@@ -1015,13 +1009,6 @@
       const rank=x=>x.website&&!x.isPlatform?0:(x.phone?1:2);
       return rank(a)-rank(b)||a.name.localeCompare(b.name,"de");
     });
-  }
-
-  function kindBadge(it){
-    if(it.isPlatform) return '<span class="badge flag">Plattform-Link</span>';
-    if(it.website) return '';
-    if(it.phone) return '<span class="badge tel">Nur Telefon</span>';
-    return '<span class="badge none">Keine Kontaktdaten</span>';
   }
 
   function render(){
