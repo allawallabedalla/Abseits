@@ -295,7 +295,8 @@
         <label class="switch"><span class="lab">Hotel / Motel</span><input type="checkbox" class="cat" data-cat="hotel" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Hostel</span><input type="checkbox" class="cat" data-cat="hostel" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Berghütte</span><input type="checkbox" class="cat" data-cat="huette" checked><span class="ui"></span></label>
-        <label class="switch"><span class="lab">Camping &amp; Hütten<small>Campingplätze, Stellplätze, Wildnis-/Schutzhütten</small></span><input type="checkbox" class="cat" data-cat="camping" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Wohnmobil / Stellplatz<small>Wohnmobilstellplätze &amp; wohnmobilfreundliche Parkplätze</small></span><input type="checkbox" class="cat" data-cat="wohnmobil" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Camping &amp; Hütten<small>Campingplätze, Wildnis-/Schutzhütten</small></span><input type="checkbox" class="cat" data-cat="camping" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Sonstige / unklar</span><input type="checkbox" class="cat" data-cat="sonstige" checked><span class="ui"></span></label>
         </div>
 
@@ -387,7 +388,8 @@
     apartment:"Ferienwohnung",motel:"Motel",bed_and_breakfast:"B&B",alpine_hut:"Berghütte",
     inn:"Gasthof",cottage:"Ferienhaus",farmstay:"Bauernhof / Urlaub am Hof",private_guest_room:"Privatzimmer",lodging:"Unterkunft",
     camp_site:"Campingplatz",caravan_site:"Wohnmobilstellplatz",wilderness_hut:"Wildnishütte",camp_pitch:"Stellplatz",
-    shelter:"Schutzhütte / Unterstand",campground:"Campingplatz",rv_park:"Wohnmobilstellplatz",camping_cabin:"Campinghütte"
+    shelter:"Schutzhütte / Unterstand",campground:"Campingplatz",rv_park:"Wohnmobilstellplatz",camping_cabin:"Campinghütte",
+    caravan_parking:"Wohnmobil-Parkplatz"
   };
   const PLATFORM=/(airbnb\.|booking\.com|expedia\.|hrs\.|trivago\.|fewo-direkt|vrbo\.)/i;
   const CHAIN=/(b\s?&\s?b hotel|hotel-bb\.|\bibis\b|mercure|novotel|sofitel|accor|motel one|\ba\s?&\s?o\b|premier inn|holiday inn|best western|leonardo hotel|nh hotel|\bramada\b|mövenpick|movenpick|hilton|marriott|hampton|intercity\s?hotel|h\+ hotel|h-hotels|dorint|maritim|steigenberger|\bachat\b|ghotel|prizeotel|super 8|meininger)/i;
@@ -397,8 +399,9 @@
     hotel:"hotel",motel:"hotel",
     apartment:"fewo",chalet:"fewo",cottage:"fewo",farmstay:"fewo",
     hostel:"hostel",alpine_hut:"huette",
-    camp_site:"camping",caravan_site:"camping",wilderness_hut:"camping",camp_pitch:"camping",shelter:"camping",
-    campground:"camping",rv_park:"camping",camping_cabin:"camping"
+    camp_site:"camping",wilderness_hut:"camping",camp_pitch:"camping",shelter:"camping",
+    campground:"camping",camping_cabin:"camping",
+    caravan_site:"wohnmobil",rv_park:"wohnmobil",caravan_parking:"wohnmobil"
   };
   const catOf=t=>CAT[t]||"sonstige";
 
@@ -732,11 +735,13 @@
     const query=`[out:json][timeout:25];(`+
       `node["tourism"~"${rx}"]${bbox};way["tourism"~"${rx}"]${bbox};`+
       `node["amenity"="shelter"]["shelter_type"~"${shx}"]${bbox};way["amenity"="shelter"]["shelter_type"~"${shx}"]${bbox};`+
+      // Wohnmobilfreundliche Parkplätze (Park4Night-Stil) — über OSM frei verfügbar
+      `node["amenity"="parking"]["caravans"="yes"]${bbox};way["amenity"="parking"]["caravans"="yes"]${bbox};`+
       `);out center tags 250;`;
     return (await overpass(query)).map(el=>{
       const t=el.tags||{},lat=el.lat??el.center?.lat,lon=el.lon??el.center?.lon;
       if(lat==null||lon==null) return null;
-      const type=t.tourism||(t.amenity==="shelter"?"shelter":"");
+      const type=t.tourism||(t.amenity==="shelter"?"shelter":(t.amenity==="parking"?"caravan_parking":""));
       const website=t.website||t["contact:website"]||t.url||"";
       const ia=(t.internet_access||t.wifi||"").toLowerCase();
       return {name:t.name||LABELS[type]||"Ohne Namen",kind:LABELS[type]||type,cat:catOf(type),lat,lon,website,
