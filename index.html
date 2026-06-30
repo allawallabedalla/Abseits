@@ -759,7 +759,7 @@
     // Aussichtstürme gezielt (nicht jeder man_made=tower ist begehbar)
     const towers=`node["man_made"="tower"]["tower:type"="observation"]${bbox};way["man_made"="tower"]["tower:type"="observation"]${bbox};`;
     const query=`[out:json][timeout:25];(`+groups+towers+`);out center tags 300;`;
-    return (await overpass(query)).map(el=>{
+    const list=(await overpass(query)).map(el=>{
       const t=el.tags||{}, lat=el.lat??el.center?.lat, lon=el.lon??el.center?.lon;
       if(lat==null||lon==null) return null;
       let label=null, cat=null;
@@ -775,9 +775,36 @@
         fee:(t.fee||"").toLowerCase(),
         ele:parseFloat(t.ele)||0,
         image:poiImage(t), wiki:poiWiki(t),
+        qid:/^Q\d+$/.test(t.wikidata||"")?t.wikidata:"",
         addr:[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")+(t["addr:city"]?", "+t["addr:city"]:""),
         source:"osm"};
     }).filter(Boolean);
+    await enrichImages(list);   // Bilder über Wikidata (P18) nachladen, wo das OSM-Tag fehlt
+    return list;
+  }
+  // Holt fehlende POI-Bilder gebündelt über die Wikidata-API (P18 -> Wikimedia Commons).
+  // CORS-fähig (origin=*); Fehler sind unkritisch, Bilder bleiben optional.
+  async function enrichImages(items){
+    const byId=new Map();
+    items.forEach(it=>{ if(!it.image && it.qid){ if(!byId.has(it.qid)) byId.set(it.qid,[]); byId.get(it.qid).push(it); } });
+    const ids=[...byId.keys()];
+    if(!ids.length) return;
+    for(let i=0;i<ids.length;i+=50){
+      const chunk=ids.slice(i,i+50);
+      try{
+        const r=await fetch("https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=claims&ids="+chunk.join("%7C"));
+        if(!r.ok) continue;
+        const d=await r.json();
+        Object.entries(d.entities||{}).forEach(([qid,ent])=>{
+          const c=ent.claims&&ent.claims.P18&&ent.claims.P18[0];
+          const file=c&&c.mainsnak&&c.mainsnak.datavalue&&c.mainsnak.datavalue.value;
+          if(file){
+            const img="https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(file)+"?width=480";
+            (byId.get(qid)||[]).forEach(it=>{ if(!it.image) it.image=img; });
+          }
+        });
+      }catch(e){ /* Bilder sind optional */ }
+    }
   }
   // Thumbnail aus OSM-Tags: Wikimedia Commons (zuverlässig) oder direkter image-Link
   function poiImage(t){
@@ -786,13 +813,13 @@
     const img=t.image||"";
     return /^https:\/\//i.test(img) ? img : "";
   }
-  // „Mehr Infos“-Link: Wikipedia (sprachspezifisch) oder Wikidata
+  // „Wikipedia“-Link nur bei echtem Artikel (sprachspezifisch). Kein Wikidata-
+  // Fallback — der führte oft auf leere/technische Datenseiten.
   function poiWiki(t){
     if(t.wikipedia){
       const i=String(t.wikipedia).indexOf(":");
       if(i>0) return "https://"+t.wikipedia.slice(0,i)+".wikipedia.org/wiki/"+encodeURIComponent(t.wikipedia.slice(i+1).replace(/ /g,"_"));
     }
-    if(t.wikidata) return "https://www.wikidata.org/wiki/"+encodeURIComponent(t.wikidata);
     return "";
   }
 
@@ -894,22 +921,29 @@
     const b=boundsArg||map.getBounds(), key=(localStorage.getItem("abseits_gkey")||"").trim();
     origin=b.getCenter(); // Bezugspunkt für Entfernung (Suchort bzw. eigener Standort)
     const tasks=[], info={counts:[],errs:[]};
-    if(mode==="entdecken"){
-      // Entdecken: nur OpenStreetMap (kostenlos, ohne Key) — POIs in der Umgebung
-      tasks.push(fetchPoi(b).then(r=>{info.counts.push("Orte: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
-    } else {
-      if(useOsm.checked) tasks.push(fetchOsm(b).then(r=>{info.counts.push("OSM: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
-      if(useGoogle.checked){
-        const gp=PROXY_URL?fetchGoogleProxy(b):(key?fetchGoogle(b,key):null);
-        if(gp) tasks.push(gp.then(r=>{info.counts.push("Google: "+r.length);return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
-        else info.errs.push("Google: kein Key (Tab „Filter“)");
+    try{
+      if(mode==="entdecken"){
+        // Entdecken: nur OpenStreetMap (kostenlos, ohne Key) — POIs in der Umgebung
+        tasks.push(fetchPoi(b).then(r=>{info.counts.push("Orte: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
+      } else {
+        if(useOsm.checked) tasks.push(fetchOsm(b).then(r=>{info.counts.push("OSM: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
+        if(useGoogle.checked){
+          const gp=PROXY_URL?fetchGoogleProxy(b):(key?fetchGoogle(b,key):null);
+          if(gp) tasks.push(gp.then(r=>{info.counts.push("Google: "+r.length);return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
+          else info.errs.push("Google: kein Key (Tab „Filter“)");
+        }
       }
+      const parts=await Promise.all(tasks);
+      results = mode==="entdecken" ? dedupePoi([].concat(...parts)) : merge([].concat(...parts));
+      lastInfo=info;
+      render();
+    }catch(e){
+      info.errs.push("Fehler: "+(e&&e.message||e));
+      lastInfo=info; render();
+    }finally{
+      // Buttons immer wieder freigeben — sonst bleibt „Suchen“/„Kartenbereich durchsuchen“ ausgegraut
+      busy=false; goBtn.disabled=hereBtn.disabled=false;
     }
-    const parts=await Promise.all(tasks);
-    results = mode==="entdecken" ? dedupePoi([].concat(...parts)) : merge([].concat(...parts));
-    lastInfo=info;
-    render();
-    busy=false; goBtn.disabled=hereBtn.disabled=false;
   }
 
   function activeCats(sel){
