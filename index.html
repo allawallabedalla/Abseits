@@ -673,6 +673,15 @@
   infoClose.addEventListener("click",closeInfo);
   infoSheet.addEventListener("click",e=>{ if(e.target===infoSheet) closeInfo(); });
   document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!infoSheet.hidden) closeInfo(); });
+  // Fokus-Falle: Tab bleibt im offenen Sheet
+  infoSheet.addEventListener("keydown",e=>{
+    if(e.key!=="Tab") return;
+    const f=infoSheet.querySelectorAll('a[href],button:not([disabled])');
+    if(!f.length) return;
+    const first=f[0], last=f[f.length-1];
+    if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+  });
 
   function setStatus(m){listEl.innerHTML='<p class="status">'+m+'</p>';}
   function clearMarkers(){cluster.clearLayers();markers=[];}
@@ -822,7 +831,7 @@
       const card=cards.find(c=>c.dataset.key===favKey(it));
       if(card && !card.querySelector(".thumb")){
         const img=document.createElement("img");
-        img.className="thumb"; img.loading="lazy"; img.alt=""; img.src=url;
+        img.className="thumb"; img.loading="lazy"; img.alt=it.name||""; img.src=url;
         img.onerror=function(){ this.remove(); };
         card.insertBefore(img,card.firstChild);
       }
@@ -1059,7 +1068,7 @@
     acts.push('<button type="button" class="iconact favbtn'+(fav?' on':'')+'" aria-pressed="'+(fav?'true':'false')+'" title="'+(fav?'Gemerkt':'Merken')+'" aria-label="'+(fav?'Gemerkt':'Merken')+'">'+starSvg+'</button>');
 
     const imgUrl=safeUrl(it.image);
-    const thumb=imgUrl?'<img class="thumb" loading="lazy" src="'+esc(imgUrl)+'" alt="" onerror="this.remove()">':'';
+    const thumb=imgUrl?'<img class="thumb" loading="lazy" src="'+esc(imgUrl)+'" alt="'+esc(it.name||"")+'" onerror="this.remove()">':'';
     const card=document.createElement("div");
     card.className="item"; card.dataset.id=opts.id||""; card.dataset.key=favKey(it);
     card.innerHTML=thumb+'<h3>'+esc(it.name)+'</h3><div class="kind">'+esc(it.kind)+(it.addr?' · '+esc(it.addr):'')+'</div>'+
@@ -1081,7 +1090,7 @@
   function popup(it){
     const webUrl=safeUrl(it.website), wikiUrl=safeUrl(it.wiki), imgUrl=safeUrl(it.image);
     let h='';
-    if(imgUrl) h+='<img class="popthumb" loading="lazy" src="'+esc(imgUrl)+'" alt="" onerror="this.remove()">';
+    if(imgUrl) h+='<img class="popthumb" loading="lazy" src="'+esc(imgUrl)+'" alt="'+esc(it.name||"")+'" onerror="this.remove()">';
     h+='<h3>'+esc(it.name)+'</h3><div style="color:var(--muted);font-size:13px">'+esc(it.kind)+'</div>';
     if(it.addr) h+='<div style="font-size:13px;margin-top:4px">'+esc(it.addr)+'</div>';
     h+=detailBadges(it);
