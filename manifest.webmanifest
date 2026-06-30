@@ -1,7 +1,10 @@
 {
+  "id": "/",
+  "lang": "de",
   "name": "Abseits — unabhängige Unterkünfte",
   "short_name": "Abseits",
   "description": "Findet Pensionen, Gästehäuser & Ferienwohnungen abseits der großen Plattformen.",
+  "categories": ["travel", "navigation"],
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
