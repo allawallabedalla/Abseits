@@ -1166,9 +1166,9 @@
     }).join("");
     acEl.hidden=false;
   }
-  async function geocodeList(q){
+  async function geocodeList(q,signal){
     const url="https://nominatim.openstreetmap.org/search?format=json&limit=5&q="+encodeURIComponent(q);
-    const r=await fetch(url,{headers:{"Accept-Language":"de"}});
+    const r=await fetch(url,{headers:{"Accept-Language":"de"},signal});
     return r.ok ? r.json() : [];
   }
   function chooseAC(i){
@@ -1177,14 +1177,18 @@
     hideAC(); qEl.blur(); setView("list"); setStatus("Suche läuft …");
     searchResult(p).catch(e=>setStatus("Suche fehlgeschlagen: "+e.message));
   }
+  let acAbort=null;
   qEl.addEventListener("input",()=>{
     const q=qEl.value.trim(); clearTimeout(acTimer);
+    if(acAbort) acAbort.abort();           // laufende Anfrage beim Weitertippen abbrechen
     if(q.length<3){ hideAC(); return; }
+    // 600 ms Debounce hält Nominatim unter ~1 Anfrage/Sekunde (ToS-konform)
     acTimer=setTimeout(async()=>{
       const seq=++acSeq;
-      const items=await geocodeList(q).catch(()=>[]);
+      acAbort=new AbortController();
+      const items=await geocodeList(q,acAbort.signal).catch(()=>[]);
       if(seq===acSeq && qEl.value.trim().length>=3) renderAC(items);
-    },300);
+    },600);
   });
   acEl.addEventListener("pointerdown",e=>{ const li=e.target.closest("li"); if(li){ e.preventDefault(); chooseAC(+li.dataset.i); } });
   document.addEventListener("click",e=>{ if(!e.target.closest(".searchbar")) hideAC(); });
