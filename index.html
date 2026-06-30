@@ -1028,14 +1028,16 @@
     if(it.dist!=null) acts.push('<span class="dist">'+fmtDist(it.dist)+'</span>');
     acts.push('<a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+pinSvg+'Route</a>');
     acts.push('<button type="button" class="copybtn">'+copySvg+'GPS</button>');
-    if(it.website&&!it.isPlatform) acts.push('<a href="'+esc(it.website)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>');
-    if(it.wiki) acts.push('<a href="'+esc(it.wiki)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>');
+    const webUrl=safeUrl(it.website), wikiUrl=safeUrl(it.wiki);
+    if(webUrl&&!it.isPlatform) acts.push('<a href="'+esc(webUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>');
+    if(wikiUrl) acts.push('<a href="'+esc(wikiUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>');
     if(it.phone) acts.push('<a href="tel:'+esc(it.phone.replace(/\s/g,""))+'" class="iconact" title="Anrufen" aria-label="Anrufen" onclick="event.stopPropagation()">'+phoneSvg+'</a>');
     if(it.email) acts.push('<a href="mailto:'+esc(it.email)+'" onclick="event.stopPropagation()">'+mailSvg+'E-Mail</a>');
     if(canShare) acts.push('<button type="button" class="iconact sharebtn" title="Teilen" aria-label="Teilen">'+shareSvg+'</button>');
     acts.push('<button type="button" class="iconact favbtn'+(fav?' on':'')+'" aria-pressed="'+(fav?'true':'false')+'" title="'+(fav?'Gemerkt':'Merken')+'" aria-label="'+(fav?'Gemerkt':'Merken')+'">'+starSvg+'</button>');
 
-    const thumb=it.image?'<img class="thumb" loading="lazy" src="'+esc(it.image)+'" alt="" onerror="this.remove()">':'';
+    const imgUrl=safeUrl(it.image);
+    const thumb=imgUrl?'<img class="thumb" loading="lazy" src="'+esc(imgUrl)+'" alt="" onerror="this.remove()">':'';
     const card=document.createElement("div");
     card.className="item"; card.dataset.id=opts.id||"";
     card.innerHTML=thumb+'<h3>'+esc(it.name)+'</h3><div class="kind">'+esc(it.kind)+(it.addr?' · '+esc(it.addr):'')+'</div>'+
@@ -1055,13 +1057,14 @@
   }
 
   function popup(it){
+    const webUrl=safeUrl(it.website), wikiUrl=safeUrl(it.wiki), imgUrl=safeUrl(it.image);
     let h='';
-    if(it.image) h+='<img class="popthumb" loading="lazy" src="'+esc(it.image)+'" alt="" onerror="this.remove()">';
+    if(imgUrl) h+='<img class="popthumb" loading="lazy" src="'+esc(imgUrl)+'" alt="" onerror="this.remove()">';
     h+='<h3>'+esc(it.name)+'</h3><div style="color:var(--muted);font-size:13px">'+esc(it.kind)+'</div>';
     if(it.addr) h+='<div style="font-size:13px;margin-top:4px">'+esc(it.addr)+'</div>';
     h+=detailBadges(it);
-    if(it.website&&!it.isPlatform) h+='<div style="margin-top:6px"><a href="'+esc(it.website)+'" target="_blank" rel="noopener">Website</a></div>';
-    if(it.wiki) h+='<div style="margin-top:6px"><a href="'+esc(it.wiki)+'" target="_blank" rel="noopener">Wikipedia</a></div>';
+    if(webUrl&&!it.isPlatform) h+='<div style="margin-top:6px"><a href="'+esc(webUrl)+'" target="_blank" rel="noopener">Website</a></div>';
+    if(wikiUrl) h+='<div style="margin-top:6px"><a href="'+esc(wikiUrl)+'" target="_blank" rel="noopener">Wikipedia</a></div>';
     if(it.phone) h+='<div style="font-size:13px;margin-top:4px"><a href="tel:'+esc(it.phone.replace(/\s/g,""))+'">'+esc(it.phone)+'</a></div>';
     if(it.email) h+='<div style="font-size:13px;margin-top:4px"><a href="mailto:'+esc(it.email)+'">'+esc(it.email)+'</a></div>';
     h+='<div style="font-size:13px;margin-top:6px"><a href="'+routeUrl(it.lat,it.lon)+'" target="_blank" rel="noopener">Route</a></div>';
@@ -1080,6 +1083,8 @@
   }
 
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+  // Nur http/https in href zulassen — blockt javascript:, data:, … aus OSM-Tags
+  function safeUrl(u){ return /^https?:\/\//i.test(String(u||"").trim()) ? u : ""; }
 
   // ---- Deep-Links: Suche im URL-Hash (teilbar/bookmarkbar) ----
   function parseHash(){
