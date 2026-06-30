@@ -70,6 +70,17 @@
   .btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
   .btn:disabled{opacity:.5}
 
+  /* ---- Modus-Reiter (Schlafen / Entdecken) ---- */
+  .modes{display:flex;border-bottom:1px solid var(--line);background:var(--paper)}
+  .modes button{flex:1;border:0;background:transparent;min-height:52px;padding:8px;font-weight:600;font-size:15px;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;display:flex;align-items:center;justify-content:center;gap:8px}
+  .modes button.active{color:var(--ink);border-bottom-color:var(--pine)}
+  .modes button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+  .modes svg{width:19px;height:19px;flex:0 0 auto}
+
+  /* Modusabhängig ein-/ausblenden */
+  .app[data-mode="schlafen"] .only-entdecken{display:none}
+  .app[data-mode="entdecken"] .only-schlafen{display:none}
+
   /* ---- Segmented control ---- */
   .seg{display:flex;margin:10px 16px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
   .seg button{flex:1;border:0;border-right:1px solid var(--line);background:transparent;min-height:48px;font-weight:600;cursor:pointer;color:var(--ink)}
@@ -177,11 +188,22 @@
 </style>
 </head>
 <body>
-<div class="app" data-view="list" id="app">
+<div class="app" data-view="list" data-mode="schlafen" id="app">
   <header>
     <span class="brand">Abseits<span class="dot">.</span></span>
-    <span class="tag">Unterkünfte, die ihren eigenen Weg gehen — Google + OpenStreetMap.</span>
+    <span class="tag" id="tagline">Unterkünfte, die ihren eigenen Weg gehen — Google + OpenStreetMap.</span>
   </header>
+
+  <nav class="modes" role="tablist" aria-label="Modus">
+    <button data-mode="schlafen" class="active" role="tab" aria-selected="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5"/><path d="M3 18v3M21 18v3M3 13V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4"/></svg>
+      Schlafen
+    </button>
+    <button data-mode="entdecken" role="tab" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M16 8l-2.5 5.5L8 16l2.5-5.5z"/></svg>
+      Entdecken
+    </button>
+  </nav>
 
   <div class="searchbar">
     <input id="q" type="text" placeholder="Ort, z. B. Gersfeld, Rhön" aria-label="Ort suchen" enterkeyhint="search">
@@ -219,6 +241,7 @@
     <!-- FILTER -->
     <div class="view view-filters" role="tabpanel">
       <div class="panel">
+        <div class="only-schlafen">
         <h2>Quellen</h2>
         <label class="switch"><span class="lab">Google<small>Beste Trefferquote (API-Key nötig)</small></span><input type="checkbox" id="useGoogle" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">OpenStreetMap<small>Kostenlos, ohne Key</small></span><input type="checkbox" id="useOsm" checked><span class="ui"></span></label>
@@ -239,12 +262,27 @@
         <label class="switch"><span class="lab">Berghütte</span><input type="checkbox" class="cat" data-cat="huette" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Camping &amp; Hütten<small>Campingplätze, Stellplätze, Wildnis-/Schutzhütten</small></span><input type="checkbox" class="cat" data-cat="camping" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Sonstige / unklar</span><input type="checkbox" class="cat" data-cat="sonstige" checked><span class="ui"></span></label>
+        </div>
+
+        <div class="only-entdecken">
+        <h2>Anzeigen</h2>
+        <label class="switch"><span class="lab">Nur ohne Eintritt<small>Kostenlose Ziele bevorzugen (laut OSM)</small></span><input type="checkbox" id="poiFree" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Nur naturnah<small>Nur Natur &amp; Wasser zeigen</small></span><input type="checkbox" id="poiNature"><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Nur mit Namen<small>Unbenannte Punkte ausblenden</small></span><input type="checkbox" id="poiNamed"><span class="ui"></span></label>
+
+        <h2>Was entdecken?</h2>
+        <label class="switch"><span class="lab">Natur &amp; Aussicht<small>Gipfel, Aussichtspunkte, Wasserfälle, Höhlen</small></span><input type="checkbox" class="pcat" data-pcat="natur" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Wasser &amp; Baden<small>Seen, Badestellen, Quellen</small></span><input type="checkbox" class="pcat" data-pcat="wasser" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Kultur &amp; Geschichte<small>Burgen, Ruinen, Denkmäler</small></span><input type="checkbox" class="pcat" data-pcat="kultur" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Sehenswürdigkeiten<small>Türme, Museen, Tierparks</small></span><input type="checkbox" class="pcat" data-pcat="freizeit" checked><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Rast &amp; Feuerstellen<small>Picknickplätze, Grill- &amp; Feuerstellen</small></span><input type="checkbox" class="pcat" data-pcat="rast" checked><span class="ui"></span></label>
+        </div>
 
         <h2>Karte</h2>
         <label class="switch"><span class="lab">Beim Verschieben neu suchen<small>Sucht automatisch im neuen Kartenbereich</small></span><input type="checkbox" id="autoSearch"><span class="ui"></span></label>
         <p class="switch-note" id="autoNote" hidden>Hinweis: Bei aktivem Google-Key löst jede Kartenbewegung eine neue Google-Suche aus (kann Kosten verursachen).</p>
 
-        <div id="keySection">
+        <div id="keySection" class="only-schlafen">
         <h2>Google-API-Key</h2>
         <div class="keyrow">
           <input id="key" type="password" placeholder="Key — nur lokal gespeichert" autocomplete="off">
@@ -302,9 +340,50 @@
   };
   const catOf=t=>CAT[t]||"sonstige";
 
+  // ---- Entdecken: POI-Definitionen (OpenStreetMap) ----
+  // [Schlüssel, Wert, Kategorie, Label, special?] — special=eigene Overpass-Zeile statt Sammel-Regex
+  const POI_DEFS=[
+    ["tourism","viewpoint","natur","Aussichtspunkt"],
+    ["natural","peak","natur","Gipfel"],
+    ["natural","volcano","natur","Vulkan"],
+    ["natural","waterfall","natur","Wasserfall"],
+    ["waterway","waterfall","natur","Wasserfall"],
+    ["natural","cave_entrance","natur","Höhle"],
+    ["natural","arch","natur","Felsbogen"],
+    ["natural","spring","wasser","Quelle"],
+    ["natural","hot_spring","wasser","Therme / heiße Quelle"],
+    ["natural","beach","wasser","Strand / Badestelle"],
+    ["leisure","swimming_area","wasser","Badestelle"],
+    ["historic","castle","kultur","Burg / Schloss"],
+    ["historic","ruins","kultur","Ruine"],
+    ["historic","fort","kultur","Festung"],
+    ["historic","monument","kultur","Denkmal"],
+    ["historic","memorial","kultur","Gedenkstätte"],
+    ["historic","archaeological_site","kultur","Archäolog. Stätte"],
+    ["historic","manor","kultur","Herrenhaus"],
+    ["tourism","artwork","kultur","Kunst im Freien"],
+    ["tourism","attraction","freizeit","Sehenswürdigkeit"],
+    ["tourism","museum","freizeit","Museum"],
+    ["tourism","zoo","freizeit","Tierpark"],
+    ["tourism","theme_park","freizeit","Freizeitpark"],
+    ["man_made","lighthouse","freizeit","Leuchtturm"],
+    ["man_made","tower","freizeit","Aussichtsturm",true],
+    ["tourism","picnic_site","rast","Picknickplatz"],
+    ["amenity","bbq","rast","Grillplatz"],
+    ["leisure","firepit","rast","Feuerstelle"]
+  ];
+  const POI_LABEL={}, POI_CAT={};
+  POI_DEFS.forEach(([k,v,c,l])=>{ POI_LABEL[k+"="+v]=l; POI_CAT[k+"="+v]=c; });
+  // Reihenfolge bestimmt, welcher Tag bei Mehrfach-Tagging gewinnt (spezifisch zuerst)
+  const POI_KEYS=["historic","natural","waterway","leisure","amenity","man_made","tourism"];
+  // Sammel-Regex je Schlüssel (ohne special-Einträge)
+  const POI_GROUPS={};
+  POI_DEFS.forEach(([k,v,,,special])=>{ if(special) return; (POI_GROUPS[k]=POI_GROUPS[k]||[]).push(v); });
+
   // Marker-Farben einmal aus den CSS-Variablen lesen (statt pro Treffer)
   const cssVar=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-  const MC={pine:cssVar("--pine"),ochre:cssVar("--ochre"),flag:cssVar("--flag"),slate:cssVar("--slate")};
+  const MC={pine:cssVar("--pine"),ochre:cssVar("--ochre"),flag:cssVar("--flag"),slate:cssVar("--slate"),gbl:cssVar("--gbl")};
+  const POI_COLORS={natur:MC.pine,wasser:MC.gbl,kultur:MC.ochre,freizeit:MC.slate,rast:MC.flag};
 
   // Icons (geteilt von Listen-, Karten- und Merkliste-Rendering)
   const pinSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
@@ -318,6 +397,9 @@
   // Detail-Badges aus OSM-Tags (Sterne, Barrierefreiheit, WLAN)
   function detailBadges(it){
     const b=[];
+    if(it.ele) b.push('<span class="badge">↑ '+Math.round(it.ele)+' m</span>');
+    if(it.fee==="yes") b.push('<span class="badge flag">Eintritt</span>');
+    else if(it.fee==="no") b.push('<span class="badge web">Eintritt frei</span>');
     if(it.stars) b.push('<span class="badge">'+'★'.repeat(Math.min(it.stars,5))+'</span>');
     if(it.wheelchair==="yes"||it.wheelchair==="designated") b.push('<span class="badge web">♿ barrierefrei</span>');
     else if(it.wheelchair==="limited") b.push('<span class="badge">♿ teilweise</span>');
@@ -348,6 +430,7 @@
   const useGoogle=$("useGoogle"), useOsm=$("useOsm"), onlyContact=$("onlyContact"), hidePlatform=$("hidePlatform"), hideChains=$("hideChains");
   const onlyAccessible=$("onlyAccessible"), onlyWifi=$("onlyWifi"), autoSearch=$("autoSearch"), autoNote=$("autoNote");
   const keyEl=$("key"), saveKey=$("saveKey"), contactNote=$("contactNote");
+  const poiFree=$("poiFree"), poiNature=$("poiNature"), poiNamed=$("poiNamed"), tagline=$("tagline");
 
   keyEl.value=localStorage.getItem("abseits_gkey")||"";
   saveKey.addEventListener("click",()=>{localStorage.setItem("abseits_gkey",keyEl.value.trim());saveKey.textContent="Gespeichert ✓";setTimeout(()=>saveKey.textContent="Speichern",1500);});
@@ -361,27 +444,32 @@
 
   // ---- Einstellungen merken (überleben App-Neustart) ----
   function savePrefs(){
-    const cats={};
+    const cats={}, pcats={};
     document.querySelectorAll(".cat").forEach(c=>cats[c.dataset.cat]=c.checked);
+    document.querySelectorAll(".pcat").forEach(c=>pcats[c.dataset.pcat]=c.checked);
     try{ localStorage.setItem("abseits_prefs",JSON.stringify({
       useGoogle:useGoogle.checked,useOsm:useOsm.checked,onlyContact:onlyContact.checked,
       hidePlatform:hidePlatform.checked,hideChains:hideChains.checked,
       onlyAccessible:onlyAccessible.checked,onlyWifi:onlyWifi.checked,autoSearch:autoSearch.checked,
-      cats,view:appEl.dataset.view
+      poiFree:poiFree.checked,poiNature:poiNature.checked,poiNamed:poiNamed.checked,
+      cats,pcats,mode,view:appEl.dataset.view
     })); }catch(e){}
   }
   function loadPrefs(){
     let p; try{ p=JSON.parse(localStorage.getItem("abseits_prefs")||"{}"); }catch(e){ p={}; }
     [["useGoogle",useGoogle],["useOsm",useOsm],["onlyContact",onlyContact],["hidePlatform",hidePlatform],["hideChains",hideChains],
-     ["onlyAccessible",onlyAccessible],["onlyWifi",onlyWifi],["autoSearch",autoSearch]]
+     ["onlyAccessible",onlyAccessible],["onlyWifi",onlyWifi],["autoSearch",autoSearch],
+     ["poiFree",poiFree],["poiNature",poiNature],["poiNamed",poiNamed]]
       .forEach(([k,el])=>{ if(typeof p[k]==="boolean") el.checked=p[k]; });
     if(p.cats) document.querySelectorAll(".cat").forEach(c=>{ if(c.dataset.cat in p.cats) c.checked=p.cats[c.dataset.cat]; });
+    if(p.pcats) document.querySelectorAll(".pcat").forEach(c=>{ if(c.dataset.pcat in p.pcats) c.checked=p.pcats[c.dataset.pcat]; });
     contactNote.hidden=!onlyContact.checked;
     autoNote.hidden=!autoSearch.checked;
+    if(p.mode==="entdecken"){ setMode("entdecken"); setStatus(modeIntro()); }
     if(p.view&&p.view!=="filters") setView(p.view);
   }
 
-  let markers=[], results=[], busy=false, lastInfo={}, origin=null;
+  let markers=[], results=[], busy=false, lastInfo={}, origin=null, mode="schlafen";
   const isApple=/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
 
   // ---- Merkliste / Favoriten (IndexedDB, offline) ----
@@ -417,6 +505,7 @@
       const rec={key,name:it.name,kind:it.kind,cat:it.cat,lat:it.lat,lon:it.lon,
         website:it.website||"",phone:it.phone||"",email:it.email||"",addr:it.addr||"",source:it.source||"",
         stars:it.stars||0,wheelchair:it.wheelchair||"",wifi:!!it.wifi,
+        ele:it.ele||0,fee:it.fee||"",poi:!!it.poi,
         isPlatform:!!it.isPlatform,savedAt:Date.now()};
       favs.set(key,rec); idbWrite(s=>s.put(rec)).catch(()=>{});
       if(btn){ btn.classList.add("on"); btn.setAttribute("aria-pressed","true"); btn.title="Gemerkt"; btn.setAttribute("aria-label","Gemerkt"); }
@@ -489,6 +578,31 @@
   }
   document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
 
+  // ---- Modus umschalten (Schlafen / Entdecken) ----
+  function modeIntro(){
+    return mode==="entdecken"
+      ? 'Gib oben einen Ort ein oder tippe auf das Standort-Symbol. Abseits zeigt spannende Ziele in der Umgebung — Aussichtspunkte, Wasserfälle, Burgen, Badestellen &amp; mehr.'
+      : 'Gib oben einen Ort ein. Das Tool durchsucht den Kartenbereich nach Pensionen, Gästehäusern, Ferienwohnungen &amp; Co.';
+  }
+  function setMode(m){
+    if(m!=="entdecken") m="schlafen";
+    if(m===mode) return;
+    mode=m; appEl.dataset.mode=m;
+    document.querySelectorAll(".modes button").forEach(b=>{
+      const on=b.dataset.mode===m;
+      b.classList.toggle("active",on);
+      b.setAttribute("aria-selected",on?"true":"false");
+    });
+    tagline.textContent = m==="entdecken"
+      ? "Spannende Orte in der Umgebung — kostenlos über OpenStreetMap."
+      : "Unterkünfte, die ihren eigenen Weg gehen — Google + OpenStreetMap.";
+    results=[]; clearMarkers(); setView("list");
+    if(origin) fetchArea();           // gleiche Gegend, neue Datenquelle
+    else setStatus(modeIntro());
+    savePrefs();
+  }
+  document.querySelectorAll(".modes button").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
+
   function setStatus(m){listEl.innerHTML='<p class="status">'+m+'</p>';}
   function clearMarkers(){cluster.clearLayers();markers=[];}
 
@@ -526,16 +640,10 @@
 
   // ---- OSM (Overpass, CORS-tauglich, Mirror-Fallback bei Überlastung) ----
   const OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
-  async function fetchOsm(b){
-    const s=b.getSouth(),w=b.getWest(),n=b.getNorth(),e=b.getEast();
-    const rx="^("+OSM_TYPES.join("|")+")$", shx="^(basic_hut|lean_to|rock_shelter)$", bbox=`(${s},${w},${n},${e})`;
-    const query=`[out:json][timeout:25];(`+
-      `node["tourism"~"${rx}"]${bbox};way["tourism"~"${rx}"]${bbox};`+
-      `node["amenity"="shelter"]["shelter_type"~"${shx}"]${bbox};way["amenity"="shelter"]["shelter_type"~"${shx}"]${bbox};`+
-      `);out center tags 250;`;
+  // Overpass-Anfrage mit Mirror-Fallback (504/429) — liefert die rohen Elemente
+  async function overpass(query){
     const body="data="+encodeURIComponent(query);
     let d=null, lastErr=null;
-    // Über beide Endpunkte iterieren; bei 504/429 zum Mirror wechseln statt aufzugeben
     for(let i=0;i<OVERPASS.length&&!d;i++){
       try{
         const r=await fetch(OVERPASS[i],{method:"POST",body});
@@ -545,7 +653,16 @@
       }catch(err){lastErr=err;}
     }
     if(!d) throw lastErr||new Error("Overpass nicht erreichbar");
-    return (d.elements||[]).map(el=>{
+    return d.elements||[];
+  }
+  async function fetchOsm(b){
+    const s=b.getSouth(),w=b.getWest(),n=b.getNorth(),e=b.getEast();
+    const rx="^("+OSM_TYPES.join("|")+")$", shx="^(basic_hut|lean_to|rock_shelter)$", bbox=`(${s},${w},${n},${e})`;
+    const query=`[out:json][timeout:25];(`+
+      `node["tourism"~"${rx}"]${bbox};way["tourism"~"${rx}"]${bbox};`+
+      `node["amenity"="shelter"]["shelter_type"~"${shx}"]${bbox};way["amenity"="shelter"]["shelter_type"~"${shx}"]${bbox};`+
+      `);out center tags 250;`;
+    return (await overpass(query)).map(el=>{
       const t=el.tags||{},lat=el.lat??el.center?.lat,lon=el.lon??el.center?.lon;
       if(lat==null||lon==null) return null;
       const type=t.tourism||(t.amenity==="shelter"?"shelter":"");
@@ -558,6 +675,36 @@
         wheelchair:(t.wheelchair||"").toLowerCase(),
         wifi:ia==="wlan"||ia==="yes"||ia==="wifi"||ia==="wlan;wired",
         addr:[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")+(t["addr:city"]?", "+t["addr:city"]:""),source:"osm"};
+    }).filter(Boolean);
+  }
+
+  // ---- Entdecken: POIs aus OpenStreetMap (Overpass) ----
+  async function fetchPoi(b){
+    const s=b.getSouth(),w=b.getWest(),n=b.getNorth(),e=b.getEast(), bbox=`(${s},${w},${n},${e})`;
+    const groups=Object.entries(POI_GROUPS).map(([k,vs])=>{
+      const rx="^("+vs.join("|")+")$";
+      return `node["${k}"~"${rx}"]${bbox};way["${k}"~"${rx}"]${bbox};`;
+    }).join("");
+    // Aussichtstürme gezielt (nicht jeder man_made=tower ist begehbar)
+    const towers=`node["man_made"="tower"]["tower:type"="observation"]${bbox};way["man_made"="tower"]["tower:type"="observation"]${bbox};`;
+    const query=`[out:json][timeout:25];(`+groups+towers+`);out center tags 300;`;
+    return (await overpass(query)).map(el=>{
+      const t=el.tags||{}, lat=el.lat??el.center?.lat, lon=el.lon??el.center?.lon;
+      if(lat==null||lon==null) return null;
+      let label=null, cat=null;
+      for(const k of POI_KEYS){
+        const key=k+"="+(t[k]||"");
+        if(t[k] && POI_LABEL[key]){ label=POI_LABEL[key]; cat=POI_CAT[key]; break; }
+      }
+      if(!label) return null;
+      return {name:t.name||label, kind:label, cat, poi:true, lat, lon,
+        website:t.website||t["contact:website"]||t.url||"",
+        phone:t.phone||t["contact:phone"]||t["contact:mobile"]||"",
+        email:t["contact:email"]||t.email||"",
+        fee:(t.fee||"").toLowerCase(),
+        ele:parseFloat(t.ele)||0,
+        addr:[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")+(t["addr:city"]?", "+t["addr:city"]:""),
+        source:"osm"};
     }).filter(Boolean);
   }
 
@@ -635,6 +782,21 @@
     return out;
   }
 
+  // POI-Dedupe: nur gleichnamige Ziele derselben Kategorie nah beieinander zusammenfassen
+  // (unbenannte Punkte bleiben immer einzeln — sonst würden z. B. zwei Quellen verschmelzen)
+  function dedupePoi(a){
+    const out=[];
+    a.forEach(it=>{
+      const dup=norm(it.name) && out.find(o=>o.cat===it.cat && norm(o.name)===norm(it.name) && map.distance([o.lat,o.lon],[it.lat,it.lon])<150);
+      if(dup){
+        if(!dup.website&&it.website) dup.website=it.website;
+        if(!dup.ele&&it.ele) dup.ele=it.ele;
+        if(!dup.fee&&it.fee) dup.fee=it.fee;
+      } else out.push({...it});
+    });
+    return out;
+  }
+
   // ---- Suche ----
   async function fetchArea(boundsArg){
     if(busy) return;
@@ -642,35 +804,53 @@
     const b=boundsArg||map.getBounds(), key=(localStorage.getItem("abseits_gkey")||"").trim();
     origin=b.getCenter(); // Bezugspunkt für Entfernung (Suchort bzw. eigener Standort)
     const tasks=[], info={counts:[],errs:[]};
-    if(useOsm.checked) tasks.push(fetchOsm(b).then(r=>{info.counts.push("OSM: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
-    if(useGoogle.checked){
-      const gp=PROXY_URL?fetchGoogleProxy(b):(key?fetchGoogle(b,key):null);
-      if(gp) tasks.push(gp.then(r=>{info.counts.push("Google: "+r.length);return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
-      else info.errs.push("Google: kein Key (Tab „Filter“)");
+    if(mode==="entdecken"){
+      // Entdecken: nur OpenStreetMap (kostenlos, ohne Key) — POIs in der Umgebung
+      tasks.push(fetchPoi(b).then(r=>{info.counts.push("Orte: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
+    } else {
+      if(useOsm.checked) tasks.push(fetchOsm(b).then(r=>{info.counts.push("OSM: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
+      if(useGoogle.checked){
+        const gp=PROXY_URL?fetchGoogleProxy(b):(key?fetchGoogle(b,key):null);
+        if(gp) tasks.push(gp.then(r=>{info.counts.push("Google: "+r.length);return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
+        else info.errs.push("Google: kein Key (Tab „Filter“)");
+      }
     }
     const parts=await Promise.all(tasks);
-    results=merge([].concat(...parts));
+    results = mode==="entdecken" ? dedupePoi([].concat(...parts)) : merge([].concat(...parts));
     lastInfo=info;
     render();
     busy=false; goBtn.disabled=hereBtn.disabled=false;
   }
 
-  function activeCats(){
+  function activeCats(sel){
     const set=new Set();
-    document.querySelectorAll(".cat").forEach(c=>{ if(c.checked) set.add(c.dataset.cat); });
+    document.querySelectorAll(sel).forEach(c=>{ if(c.checked) set.add(c.dataset[sel===".pcat"?"pcat":"cat"]); });
     return set;
   }
-  function visible(){
-    const cats=activeCats();
-    const out=results.filter(r=>{
-      if(hidePlatform.checked&&r.isPlatform) return false;
-      if(hideChains.checked&&r.isChain) return false;
-      if(onlyContact.checked&&!r.website&&!r.phone) return false;
-      if(onlyAccessible.checked&&!(r.wheelchair==="yes"||r.wheelchair==="limited"||r.wheelchair==="designated")) return false;
-      if(onlyWifi.checked&&!r.wifi) return false;
-      if(!cats.has(r.cat||"sonstige")) return false;
+  function visiblePoi(){
+    const cats=activeCats(".pcat");
+    const nature=new Set(["natur","wasser"]);
+    return results.filter(r=>{
+      if(poiFree.checked&&r.fee==="yes") return false;
+      if(poiNature.checked&&!nature.has(r.cat)) return false;
+      if(poiNamed.checked&&(!r.name||r.name===r.kind)) return false;
+      if(!cats.has(r.cat)) return false;
       return true;
     });
+  }
+  function visible(){
+    const out=mode==="entdecken" ? visiblePoi() : (()=>{
+      const cats=activeCats(".cat");
+      return results.filter(r=>{
+        if(hidePlatform.checked&&r.isPlatform) return false;
+        if(hideChains.checked&&r.isChain) return false;
+        if(onlyContact.checked&&!r.website&&!r.phone) return false;
+        if(onlyAccessible.checked&&!(r.wheelchair==="yes"||r.wheelchair==="limited"||r.wheelchair==="designated")) return false;
+        if(onlyWifi.checked&&!r.wifi) return false;
+        if(!cats.has(r.cat||"sonstige")) return false;
+        return true;
+      });
+    })();
     const ref=origin; // Zentrum der aktuellen Suche (Ort, Kartenbereich oder eigener Standort)
     if(ref) out.forEach(r=>{ r.dist=map.distance(ref,[r.lat,r.lon]); });
     return out.sort((a,b)=>{
@@ -695,11 +875,13 @@
       const parts=[...(lastInfo.counts||[]).map(c=>'<b>'+esc(c)+'</b>'),...(lastInfo.errs||[]).map(e=>'<span class="err">'+esc(e)+'</span>')];
       diag='<div class="diag">Gefunden — '+parts.join(" · ")+'</div>';
     }
-    if(!items.length){ listEl.innerHTML=diag+'<p class="status">Keine passenden Unterkünfte. Tipp: im Tab „Filter“ Schalter lockern, oder Karte verschieben und „Diesen Kartenbereich durchsuchen“.</p>'; return; }
-    listEl.innerHTML=diag+'<p class="count">'+items.length+' Unterkünfte</p>';
+    const noun=mode==="entdecken"?"Ziele":"Unterkünfte";
+    if(!items.length){ listEl.innerHTML=diag+'<p class="status">Keine passenden '+noun+'. Tipp: im Tab „Filter“ Schalter lockern, oder Karte verschieben und „Diesen Kartenbereich durchsuchen“.</p>'; return; }
+    listEl.innerHTML=diag+'<p class="count">'+items.length+' '+noun+'</p>';
     items.forEach((it,i)=>{
       const id="it"+i;
-      const color=it.website&&!it.isPlatform?MC.pine:it.phone?MC.ochre:it.isPlatform?MC.flag:MC.slate;
+      const color=mode==="entdecken" ? (POI_COLORS[it.cat]||MC.slate)
+        : (it.website&&!it.isPlatform?MC.pine:it.phone?MC.ochre:it.isPlatform?MC.flag:MC.slate);
       const marker=L.circleMarker([it.lat,it.lon],{radius:8,color:"#fff",weight:2,fillColor:color,fillOpacity:1});
       marker.__it=it;
       marker.bindPopup(popup(it));
@@ -772,11 +954,13 @@
     return o;
   }
   function updateHash(params){
-    const h=Object.entries(params).filter(([,v])=>v!=null&&v!=="").map(([k,v])=>k+"="+encodeURIComponent(v)).join("&");
+    const all={...params,m:mode==="schlafen"?"":mode}; // Modus mit in den Deep-Link
+    const h=Object.entries(all).filter(([,v])=>v!=null&&v!=="").map(([k,v])=>k+"="+encodeURIComponent(v)).join("&");
     history.replaceState(null,"",h?"#"+h:location.pathname+location.search);
   }
   function applyHash(){
     const o=parseHash();
+    if(o.m) setMode(o.m);
     if(o.q){ qEl.value=o.q; doSearch(); return; }
     if(o.lat&&o.lon){ setView("list"); markProg(); map.setView([+o.lat,+o.lon],+o.z||13); fetchArea(); }
   }
@@ -862,6 +1046,8 @@
   [onlyContact,hidePlatform,hideChains,onlyAccessible,onlyWifi].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
   onlyContact.addEventListener("change",()=>{ contactNote.hidden=!onlyContact.checked; });
   document.querySelectorAll(".cat").forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
+  [poiFree,poiNature,poiNamed].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
+  document.querySelectorAll(".pcat").forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
   [useGoogle,useOsm].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)fetchArea();}));
   autoSearch.addEventListener("change",()=>{ autoNote.hidden=!autoSearch.checked; savePrefs(); });
 
