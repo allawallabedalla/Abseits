@@ -2,10 +2,13 @@ name = "abseits-proxy"
 main = "worker.js"
 compatibility_date = "2024-11-01"
 
-# Erlaubte Herkunft (CORS). Auf deine Pages-Domain setzen, damit nur deine App
-# den Proxy nutzen darf. Fuer lokale Tests ggf. voruebergehend "*".
+# Erlaubte Herkunft. Wird sowohl fuer CORS als auch fuer den serverseitigen
+# Origin-/Referer-Check genutzt: nur Anfragen von dieser Domain werden bedient.
+# Auf deine Pages-Domain setzen. Fuer lokale Tests ggf. voruebergehend "*".
 [vars]
 ALLOWED_ORIGIN = "https://allawallabedalla.github.io"
+# Optionales Rate-Limit pro IP (Anfragen/Minute). Standard 60, 0 = aus.
+# RATE_LIMIT = "60"
 
 # GOOGLE_KEY wird NICHT hier eingetragen, sondern als Secret gesetzt:
 #   npx wrangler secret put GOOGLE_KEY

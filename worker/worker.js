@@ -34,6 +34,12 @@ export default {
     if (request.method !== "POST") return json({ error: "method not allowed" }, 405, cors);
     if (!env.GOOGLE_KEY) return json({ error: "server not configured" }, 500, cors);
 
+    // ---- Missbrauchsschutz: nur die eigene App, und nicht im Übermaß ----
+    // CORS schützt nur Browser; ein serverseitiger Origin-/Referer-Check sperrt
+    // fremde Seiten und einfache Bots aus (verhindert Verbrennen des Google-Kontingents).
+    if (!originOk(request, env)) return json({ error: "forbidden origin" }, 403, cors);
+    if (await rateLimited(request, env, ctx)) return json({ error: "rate limited" }, 429, cors);
+
     let body;
     try { body = await request.json(); } catch { return json({ error: "bad json" }, 400, cors); }
 
@@ -97,4 +103,36 @@ function json(obj, status, cors) {
     status,
     headers: { ...cors, "Content-Type": "application/json" },
   });
+}
+
+// Nur Anfragen der eigenen App zulassen. ALLOWED_ORIGIN unset oder "*" => offen
+// (Abwärtskompatibel). Sonst muss Origin exakt passen; ohne Origin-Header wird
+// hilfsweise der Referer geprüft.
+function originOk(request, env) {
+  const allow = env.ALLOWED_ORIGIN;
+  if (!allow || allow === "*") return true;
+  const origin = request.headers.get("Origin");
+  if (origin) return origin === allow;
+  return (request.headers.get("Referer") || "").startsWith(allow);
+}
+
+// Leichtes Rate-Limit pro IP (fixes Minutenfenster) über die Edge-Cache-API.
+// Bewusst grob/ohne Atomarität — als Bremse gegen Scraping, nicht als harte Grenze.
+// Über env.RATE_LIMIT konfigurierbar (Anfragen/Minute/IP); 0 oder negativ = aus.
+async function rateLimited(request, env, ctx) {
+  const limit = Number(env.RATE_LIMIT ?? 60);
+  if (!(limit > 0)) return false;
+  const ip = request.headers.get("CF-Connecting-IP") || "anon";
+  const minute = Math.floor(Date.now() / 60000);
+  const key = new Request(
+    new URL(request.url).origin + "/__rl?ip=" + encodeURIComponent(ip) + "&m=" + minute,
+    { method: "GET" }
+  );
+  const cache = caches.default;
+  let count = 0;
+  const hit = await cache.match(key);
+  if (hit) count = Number(await hit.text()) || 0;
+  count++;
+  ctx.waitUntil(cache.put(key, new Response(String(count), { headers: { "Cache-Control": "public, max-age=70" } })));
+  return count > limit;
 }
