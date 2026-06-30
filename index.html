@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Abseits — unabhängige Unterkünfte finden</title>
+<meta name="description" content="Abseits findet Unterkünfte und spannende Ziele abseits der großen Plattformen — Pensionen, Gästehäuser, Hütten, Stellplätze sowie Aussichtspunkte, Wasserfälle &amp; Burgen. Auf Basis von OpenStreetMap.">
+
+<!-- Link-Vorschau (Open Graph / Twitter) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Abseits — unabhängig übernachten & entdecken">
+<meta property="og:description" content="Unterkünfte und Ziele abseits der großen Plattformen finden — auf Basis von OpenStreetMap.">
+<meta property="og:image" content="icon-512.png">
+<meta name="twitter:card" content="summary">
 
 <!-- PWA -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -47,7 +55,7 @@
   .app{display:flex;flex-direction:column;height:100dvh}
 
   /* ---- Kopf + Suche ---- */
-  header{padding:calc(12px + var(--safe-t)) 16px 10px;border-bottom:1px solid var(--line)}
+  header{position:relative;padding:calc(12px + var(--safe-t)) 16px 10px;border-bottom:1px solid var(--line)}
   .brand{font-family:"Poppins",sans-serif;font-weight:700;font-size:21px;letter-spacing:-.02em}
   .brand .dot{color:var(--pine)}
   .tag{display:none;color:var(--muted);font-size:13px;margin-left:10px}
@@ -82,7 +90,6 @@
   .app[data-mode="entdecken"] .only-schlafen{display:none}
 
   /* ---- Info-Button + Sheet ---- */
-  header{position:relative}
   .infobtn{position:absolute;top:calc(8px + var(--safe-t));right:12px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--muted);cursor:pointer;border-radius:10px}
   .infobtn:active{background:var(--card)}
   .infobtn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
@@ -147,13 +154,8 @@
   .badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
   .badge{font-size:12px;padding:3px 9px;border-radius:20px;border:1px solid var(--line);white-space:nowrap}
   .badge.web{border-color:var(--pine);color:var(--pine)}
-  .badge.tel{border-color:var(--ochre);color:var(--ochre)}
-  .badge.none{color:var(--slate)}
   .badge.flag{border-color:var(--flag);color:var(--flag)}
-  .badge.src{border-style:dashed}
-  .badge.g{border-color:var(--gbl);color:var(--gbl)}
   .item a{color:var(--pine);text-decoration:none;font-size:14px;word-break:break-all}
-  .meta{font-size:14px;color:var(--muted)}
   .actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:8px}
   .actions .dist{font-size:13px;color:var(--muted);font-weight:500}
   .actions a{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:500;padding:3px 0}
@@ -288,6 +290,7 @@
         <label class="switch"><span class="lab">Ketten ausblenden<small>B&amp;B, Ibis, Motel One …</small></span><input type="checkbox" id="hideChains" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Nur barrierefrei<small>Rollstuhlgerecht (laut OSM)</small></span><input type="checkbox" id="onlyAccessible"><span class="ui"></span></label>
         <label class="switch"><span class="lab">Nur mit WLAN<small>Internetzugang (laut OSM)</small></span><input type="checkbox" id="onlyWifi"><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Nur gebührenfrei<small>Kostenpflichtige ausblenden (v. a. Stellplätze, laut OSM)</small></span><input type="checkbox" id="onlyFree"><span class="ui"></span></label>
 
         <h2>Unterkunftstyp</h2>
         <label class="switch"><span class="lab">Pension / Gästehaus / B&amp;B</span><input type="checkbox" class="cat" data-cat="pension" checked><span class="ui"></span></label>
@@ -463,8 +466,10 @@
   function detailBadges(it){
     const b=[];
     if(it.ele) b.push('<span class="badge">↑ '+Math.round(it.ele)+' m</span>');
-    if(it.fee==="yes") b.push('<span class="badge flag">Eintritt</span>');
-    else if(it.fee==="no") b.push('<span class="badge web">Eintritt frei</span>');
+    // Wording: bei POIs „Eintritt“, bei Unterkünften/Plätzen „Gebühr“
+    const feeYes=it.poi?"Eintritt":"Gebühr", feeNo=it.poi?"Eintritt frei":"gebührenfrei";
+    if(it.fee==="yes") b.push('<span class="badge flag">'+feeYes+'</span>');
+    else if(it.fee==="no") b.push('<span class="badge web">'+feeNo+'</span>');
     if(it.stars) b.push('<span class="badge">'+'★'.repeat(Math.min(it.stars,5))+'</span>');
     if(it.wheelchair==="yes"||it.wheelchair==="designated") b.push('<span class="badge web">♿ barrierefrei</span>');
     else if(it.wheelchair==="limited") b.push('<span class="badge">♿ teilweise</span>');
@@ -493,7 +498,7 @@
   const $=id=>document.getElementById(id);
   const appEl=$("app"), listEl=$("list"), qEl=$("q"), goBtn=$("go"), hereBtn=$("here"), nearBtn=$("near"), acEl=$("ac"), favsEl=$("favs");
   const useGoogle=$("useGoogle"), useOsm=$("useOsm"), onlyContact=$("onlyContact"), hidePlatform=$("hidePlatform"), hideChains=$("hideChains");
-  const onlyAccessible=$("onlyAccessible"), onlyWifi=$("onlyWifi"), autoSearch=$("autoSearch"), autoNote=$("autoNote");
+  const onlyAccessible=$("onlyAccessible"), onlyWifi=$("onlyWifi"), onlyFree=$("onlyFree"), autoSearch=$("autoSearch"), autoNote=$("autoNote");
   const keyEl=$("key"), saveKey=$("saveKey"), contactNote=$("contactNote");
   const poiFree=$("poiFree"), poiNature=$("poiNature"), poiNamed=$("poiNamed"), tagline=$("tagline");
 
@@ -515,7 +520,7 @@
     try{ localStorage.setItem("abseits_prefs",JSON.stringify({
       useGoogle:useGoogle.checked,useOsm:useOsm.checked,onlyContact:onlyContact.checked,
       hidePlatform:hidePlatform.checked,hideChains:hideChains.checked,
-      onlyAccessible:onlyAccessible.checked,onlyWifi:onlyWifi.checked,autoSearch:autoSearch.checked,
+      onlyAccessible:onlyAccessible.checked,onlyWifi:onlyWifi.checked,onlyFree:onlyFree.checked,autoSearch:autoSearch.checked,
       poiFree:poiFree.checked,poiNature:poiNature.checked,poiNamed:poiNamed.checked,
       cats,pcats,mode,view:appEl.dataset.view
     })); }catch(e){}
@@ -523,14 +528,14 @@
   function loadPrefs(){
     let p; try{ p=JSON.parse(localStorage.getItem("abseits_prefs")||"{}"); }catch(e){ p={}; }
     [["useGoogle",useGoogle],["useOsm",useOsm],["onlyContact",onlyContact],["hidePlatform",hidePlatform],["hideChains",hideChains],
-     ["onlyAccessible",onlyAccessible],["onlyWifi",onlyWifi],["autoSearch",autoSearch],
+     ["onlyAccessible",onlyAccessible],["onlyWifi",onlyWifi],["onlyFree",onlyFree],["autoSearch",autoSearch],
      ["poiFree",poiFree],["poiNature",poiNature],["poiNamed",poiNamed]]
       .forEach(([k,el])=>{ if(typeof p[k]==="boolean") el.checked=p[k]; });
     if(p.cats) document.querySelectorAll(".cat").forEach(c=>{ if(c.dataset.cat in p.cats) c.checked=p.cats[c.dataset.cat]; });
     if(p.pcats) document.querySelectorAll(".pcat").forEach(c=>{ if(c.dataset.pcat in p.pcats) c.checked=p.pcats[c.dataset.pcat]; });
     contactNote.hidden=!onlyContact.checked;
     autoNote.hidden=!autoSearch.checked;
-    if(p.mode==="entdecken"){ setMode("entdecken"); setStatus(modeIntro()); }
+    if(p.mode==="entdecken") setMode("entdecken");  // setzt selbst den Intro-Status
     if(p.view&&p.view!=="filters") setView(p.view);
   }
 
@@ -676,6 +681,15 @@
   infoClose.addEventListener("click",closeInfo);
   infoSheet.addEventListener("click",e=>{ if(e.target===infoSheet) closeInfo(); });
   document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!infoSheet.hidden) closeInfo(); });
+  // Fokus-Falle: Tab bleibt im offenen Sheet
+  infoSheet.addEventListener("keydown",e=>{
+    if(e.key!=="Tab") return;
+    const f=infoSheet.querySelectorAll('a[href],button:not([disabled])');
+    if(!f.length) return;
+    const first=f[0], last=f[f.length-1];
+    if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+  });
 
   function setStatus(m){listEl.innerHTML='<p class="status">'+m+'</p>';}
   function clearMarkers(){cluster.clearLayers();markers=[];}
@@ -750,6 +764,7 @@
         stars:parseInt(t.stars,10)||0,
         wheelchair:(t.wheelchair||"").toLowerCase(),
         wifi:ia==="wlan"||ia==="yes"||ia==="wifi"||ia==="wlan;wired",
+        fee:(t.fee||"").toLowerCase(),
         addr:[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")+(t["addr:city"]?", "+t["addr:city"]:""),source:"osm"};
     }).filter(Boolean);
   }
@@ -784,8 +799,7 @@
         addr:[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")+(t["addr:city"]?", "+t["addr:city"]:""),
         source:"osm"};
     }).filter(Boolean);
-    await enrichImages(list);   // Bilder über Wikidata (P18) nachladen, wo das OSM-Tag fehlt
-    return list;
+    return list;   // Wikidata-Bilder werden nach dem Rendern nachgeladen (enrichAndPaint)
   }
   // Holt fehlende POI-Bilder gebündelt über die Wikidata-API (P18 -> Wikimedia Commons).
   // CORS-fähig (origin=*); Fehler sind unkritisch, Bilder bleiben optional.
@@ -810,6 +824,28 @@
         });
       }catch(e){ /* Bilder sind optional */ }
     }
+  }
+  // Nach dem Rendern: fehlende Bilder im Hintergrund holen und nur die
+  // betroffenen Karten/Popups nachträglich ergänzen (blockiert die Suche nicht).
+  async function enrichAndPaint(){
+    if(mode!=="entdecken") return;
+    const mine=results, need=results.filter(it=>!it.image && it.qid);
+    if(!need.length) return;
+    await enrichImages(need);
+    if(results!==mine) return;  // zwischenzeitlich neue Suche -> nichts mehr malen
+    const cards=[...listEl.querySelectorAll(".item")];
+    need.forEach(it=>{
+      const url=safeUrl(it.image); if(!url) return;
+      const card=cards.find(c=>c.dataset.key===favKey(it));
+      if(card && !card.querySelector(".thumb")){
+        const img=document.createElement("img");
+        img.className="thumb"; img.loading="lazy"; img.alt=it.name||""; img.src=url;
+        img.onerror=function(){ this.remove(); };
+        card.insertBefore(img,card.firstChild);
+      }
+      const m=markers.find(x=>x.it===it);
+      if(m) m.marker.setPopupContent(popup(it));
+    });
   }
   // Thumbnail aus OSM-Tags: Wikimedia Commons (zuverlässig) oder direkter image-Link
   function poiImage(t){
@@ -933,14 +969,15 @@
     origin=b.getCenter(); // Bezugspunkt für Entfernung (Suchort bzw. eigener Standort)
     const tasks=[], info={counts:[],errs:[]};
     try{
+      // r.length am jeweiligen Abfrage-Limit => vermutlich abgeschnitten (info.truncated)
       if(mode==="entdecken"){
         // Entdecken: nur OpenStreetMap (kostenlos, ohne Key) — POIs in der Umgebung
-        tasks.push(fetchPoi(b).then(r=>{info.counts.push("Orte: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
+        tasks.push(fetchPoi(b).then(r=>{info.counts.push("Orte: "+r.length);if(r.length>=300)info.truncated=true;return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
       } else {
-        if(useOsm.checked) tasks.push(fetchOsm(b).then(r=>{info.counts.push("OSM: "+r.length);return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
+        if(useOsm.checked) tasks.push(fetchOsm(b).then(r=>{info.counts.push("OSM: "+r.length);if(r.length>=250)info.truncated=true;return r;}).catch(e=>{info.errs.push("OSM: "+e.message);return [];}));
         if(useGoogle.checked){
           const gp=PROXY_URL?fetchGoogleProxy(b):(key?fetchGoogle(b,key):null);
-          if(gp) tasks.push(gp.then(r=>{info.counts.push("Google: "+r.length);return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
+          if(gp) tasks.push(gp.then(r=>{info.counts.push("Google: "+r.length);if(r.length>=20)info.truncated=true;return r;}).catch(e=>{info.errs.push("Google: "+e.message);return [];}));
           else info.errs.push("Google: kein Key (Tab „Filter“)");
         }
       }
@@ -948,6 +985,7 @@
       results = mode==="entdecken" ? dedupePoi([].concat(...parts)) : merge([].concat(...parts));
       lastInfo=info;
       render();
+      if(mode==="entdecken") enrichAndPaint();   // Bilder im Hintergrund nachtragen
     }catch(e){
       info.errs.push("Fehler: "+(e&&e.message||e));
       lastInfo=info; render();
@@ -982,6 +1020,7 @@
         if(onlyContact.checked&&!r.website&&!r.phone) return false;
         if(onlyAccessible.checked&&!(r.wheelchair==="yes"||r.wheelchair==="limited"||r.wheelchair==="designated")) return false;
         if(onlyWifi.checked&&!r.wifi) return false;
+        if(onlyFree.checked&&r.fee==="yes") return false;
         if(!cats.has(r.cat||"sonstige")) return false;
         return true;
       });
@@ -995,13 +1034,6 @@
     });
   }
 
-  function kindBadge(it){
-    if(it.isPlatform) return '<span class="badge flag">Plattform-Link</span>';
-    if(it.website) return '';
-    if(it.phone) return '<span class="badge tel">Nur Telefon</span>';
-    return '<span class="badge none">Keine Kontaktdaten</span>';
-  }
-
   function render(){
     clearMarkers();
     const items=visible();
@@ -1012,7 +1044,8 @@
     }
     const noun=mode==="entdecken"?"Ziele":"Unterkünfte";
     if(!items.length){ listEl.innerHTML=diag+'<p class="status">Keine passenden '+noun+'. Tipp: im Tab „Filter“ Schalter lockern, oder Karte verschieben und „Diesen Kartenbereich durchsuchen“.</p>'; return; }
-    listEl.innerHTML=diag+'<p class="count">'+items.length+' '+noun+'</p>';
+    const more=lastInfo.truncated?' · <span style="text-transform:none;letter-spacing:0;color:var(--ochre)">evtl. weitere — Ausschnitt verkleinern</span>':'';
+    listEl.innerHTML=diag+'<p class="count">'+items.length+' '+noun+more+'</p>';
     items.forEach((it,i)=>{
       const id="it"+i;
       const color=mode==="entdecken" ? (POI_COLORS[it.cat]||MC.slate)
@@ -1021,7 +1054,7 @@
       marker.__it=it;
       marker.bindPopup(popup(it));
       cluster.addLayer(marker);
-      markers.push({marker,id});
+      markers.push({marker,id,it});
       listEl.appendChild(makeCard(it,{id}));
     });
   }
@@ -1043,9 +1076,9 @@
     acts.push('<button type="button" class="iconact favbtn'+(fav?' on':'')+'" aria-pressed="'+(fav?'true':'false')+'" title="'+(fav?'Gemerkt':'Merken')+'" aria-label="'+(fav?'Gemerkt':'Merken')+'">'+starSvg+'</button>');
 
     const imgUrl=safeUrl(it.image);
-    const thumb=imgUrl?'<img class="thumb" loading="lazy" src="'+esc(imgUrl)+'" alt="" onerror="this.remove()">':'';
+    const thumb=imgUrl?'<img class="thumb" loading="lazy" src="'+esc(imgUrl)+'" alt="'+esc(it.name||"")+'" onerror="this.remove()">':'';
     const card=document.createElement("div");
-    card.className="item"; card.dataset.id=opts.id||"";
+    card.className="item"; card.dataset.id=opts.id||""; card.dataset.key=favKey(it);
     card.innerHTML=thumb+'<h3>'+esc(it.name)+'</h3><div class="kind">'+esc(it.kind)+(it.addr?' · '+esc(it.addr):'')+'</div>'+
       detailBadges(it)+'<div class="actions">'+acts.join("")+'</div>';
     if(opts.id){
@@ -1065,7 +1098,7 @@
   function popup(it){
     const webUrl=safeUrl(it.website), wikiUrl=safeUrl(it.wiki), imgUrl=safeUrl(it.image);
     let h='';
-    if(imgUrl) h+='<img class="popthumb" loading="lazy" src="'+esc(imgUrl)+'" alt="" onerror="this.remove()">';
+    if(imgUrl) h+='<img class="popthumb" loading="lazy" src="'+esc(imgUrl)+'" alt="'+esc(it.name||"")+'" onerror="this.remove()">';
     h+='<h3>'+esc(it.name)+'</h3><div style="color:var(--muted);font-size:13px">'+esc(it.kind)+'</div>';
     if(it.addr) h+='<div style="font-size:13px;margin-top:4px">'+esc(it.addr)+'</div>';
     h+=detailBadges(it);
@@ -1144,9 +1177,9 @@
     }).join("");
     acEl.hidden=false;
   }
-  async function geocodeList(q){
+  async function geocodeList(q,signal){
     const url="https://nominatim.openstreetmap.org/search?format=json&limit=5&q="+encodeURIComponent(q);
-    const r=await fetch(url,{headers:{"Accept-Language":"de"}});
+    const r=await fetch(url,{headers:{"Accept-Language":"de"},signal});
     return r.ok ? r.json() : [];
   }
   function chooseAC(i){
@@ -1155,23 +1188,36 @@
     hideAC(); qEl.blur(); setView("list"); setStatus("Suche läuft …");
     searchResult(p).catch(e=>setStatus("Suche fehlgeschlagen: "+e.message));
   }
+  let acAbort=null;
   qEl.addEventListener("input",()=>{
     const q=qEl.value.trim(); clearTimeout(acTimer);
+    if(acAbort) acAbort.abort();           // laufende Anfrage beim Weitertippen abbrechen
     if(q.length<3){ hideAC(); return; }
+    // 600 ms Debounce hält Nominatim unter ~1 Anfrage/Sekunde (ToS-konform)
     acTimer=setTimeout(async()=>{
       const seq=++acSeq;
-      const items=await geocodeList(q).catch(()=>[]);
+      acAbort=new AbortController();
+      const items=await geocodeList(q,acAbort.signal).catch(()=>[]);
       if(seq===acSeq && qEl.value.trim().length>=3) renderAC(items);
-    },300);
+    },600);
   });
   acEl.addEventListener("pointerdown",e=>{ const li=e.target.closest("li"); if(li){ e.preventDefault(); chooseAC(+li.dataset.i); } });
   document.addEventListener("click",e=>{ if(!e.target.closest(".searchbar")) hideAC(); });
+
+  // Eigener Standort-Marker (blauer Punkt) — liegt direkt auf der Karte,
+  // wird daher nicht mit den Ergebnis-Markern (Cluster) gelöscht.
+  let meMarker=null;
+  function showMe(ll){
+    if(meMarker){ meMarker.setLatLng(ll); return; }
+    meMarker=L.circleMarker(ll,{radius:7,color:"#fff",weight:3,fillColor:MC.gbl,fillOpacity:1});
+    meMarker.bindPopup("Dein Standort").addTo(map);
+  }
 
   function nearMe(){
     if(!navigator.geolocation){ setView("list"); setStatus("Standort wird vom Browser nicht unterstützt."); return; }
     setView("list"); setStatus("Standort wird ermittelt …");
     navigator.geolocation.getCurrentPosition(
-      pos=>{ const ll=L.latLng(pos.coords.latitude,pos.coords.longitude); markProg(); map.setView(ll,14); updateHash({lat:ll.lat.toFixed(5),lon:ll.lng.toFixed(5),z:14}); fetchArea(ll.toBounds(6000)); },
+      pos=>{ const ll=L.latLng(pos.coords.latitude,pos.coords.longitude); showMe(ll); markProg(); map.setView(ll,14); updateHash({lat:ll.lat.toFixed(5),lon:ll.lng.toFixed(5),z:14}); fetchArea(ll.toBounds(6000)); },
       err=>{ setStatus(err.code===1 ? "Standort-Zugriff abgelehnt. Erlaube ihn in den Einstellungen, oder tippe einen Ort ein." : "Standort nicht verfügbar — bitte Ort eingeben."); },
       {enableHighAccuracy:true,timeout:10000,maximumAge:60000}
     );
@@ -1188,7 +1234,7 @@
   });
   nearBtn.addEventListener("click",nearMe);
   hereBtn.addEventListener("click",()=>{ setView("list"); const c=map.getCenter(); updateHash({lat:c.lat.toFixed(5),lon:c.lng.toFixed(5),z:map.getZoom()}); fetchArea(); });
-  [onlyContact,hidePlatform,hideChains,onlyAccessible,onlyWifi].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
+  [onlyContact,hidePlatform,hideChains,onlyAccessible,onlyWifi,onlyFree].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
   onlyContact.addEventListener("change",()=>{ contactNote.hidden=!onlyContact.checked; });
   document.querySelectorAll(".cat").forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
   [poiFree,poiNature,poiNamed].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
