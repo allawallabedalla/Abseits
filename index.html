@@ -1044,7 +1044,17 @@
       diag='<div class="diag">Gefunden — '+parts.join(" · ")+'</div>';
     }
     const noun=mode==="entdecken"?"Ziele":"Unterkünfte";
-    if(!items.length){ listEl.innerHTML=diag+'<p class="status">Keine passenden '+noun+'. Tipp: im Tab „Filter“ Schalter lockern, oder Karte verschieben und „Diesen Kartenbereich durchsuchen“.</p>'; return; }
+    if(!items.length){
+      // Fehlerfall (z. B. Overpass überlastet) von echtem Leerergebnis unterscheiden
+      const failed = !results.length && lastInfo.errs && lastInfo.errs.length;
+      if(failed){
+        listEl.innerHTML=diag+'<p class="status">Die Suche ist fehlgeschlagen — der Kartendienst ist evtl. gerade überlastet.</p><p style="padding:0 16px"><button type="button" id="retryBtn" class="btn ghost">Erneut versuchen</button></p>';
+        const rb=$("retryBtn"); if(rb) rb.addEventListener("click",()=>fetchArea());
+      } else {
+        listEl.innerHTML=diag+'<p class="status">Keine passenden '+noun+'. Tipp: im Tab „Filter“ Schalter lockern, oder Karte verschieben und „Diesen Kartenbereich durchsuchen“.</p>';
+      }
+      return;
+    }
     const more=lastInfo.truncated?' · <span style="text-transform:none;letter-spacing:0;color:var(--ochre)">evtl. weitere — Ausschnitt verkleinern</span>':'';
     listEl.innerHTML=diag+'<p class="count">'+items.length+' '+noun+more+'</p>';
     items.forEach((it,i)=>{
