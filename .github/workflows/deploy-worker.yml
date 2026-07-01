@@ -1,0 +1,30 @@
+name: Deploy Cloudflare Worker
+
+# Deployt den Proxy-Worker (Ordner worker/) zu Cloudflare.
+# - Manuell über den "Run workflow"-Button (Tab "Actions")
+# - Automatisch, wenn sich etwas unter worker/ auf main ändert
+#
+# Voraussetzung (einmalig): Repo-Secret CLOUDFLARE_API_TOKEN anlegen
+#   Settings → Secrets and variables → Actions → New repository secret
+# Optional, falls Cloudflare den Account nicht selbst erkennt:
+#   zusätzlich CLOUDFLARE_ACCOUNT_ID als Secret.
+# Das GOOGLE_KEY-Secret des Workers bleibt bei Deploys erhalten.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['worker/**']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          command: deploy
