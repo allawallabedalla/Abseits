@@ -140,6 +140,9 @@
   .map-actions{padding:10px 16px;border-bottom:1px solid var(--line)}
   .map-actions .btn{width:100%}
   #map{flex:1;min-height:0;background:#e7e5dc}
+  /* Marker: kleiner Punkt in großer, unsichtbarer Tap-Fläche (fingerfreundlich) */
+  .poi-pin{background:none;border:0}
+  .poi-pin .dot{display:block;width:16px;height:16px;margin:12px auto;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
 
   /* ---- Liste ---- */
   .status{padding:18px 16px;color:var(--muted);font-size:14px}
@@ -626,12 +629,26 @@
     }
     download(fname,gpx,type);
   }
+  // GPX-Symbol je Kategorie (gängige Garmin-/Komoot-Symbolnamen)
+  const GPX_SYM={
+    pension:"Lodging",fewo:"Lodging",hotel:"Lodging",hostel:"Lodging",huette:"Lodging",sonstige:"Lodging",
+    camping:"Campground",wohnmobil:"Campground",
+    gipfel:"Summit",natur:"Scenic Area",wasser:"Swimming Area",kultur:"Museum",freizeit:"Park",rast:"Picnic Area"
+  };
   function favGpx(items){
-    const wpts=items.map(it=>'  <wpt lat="'+(+it.lat).toFixed(6)+'" lon="'+(+it.lon).toFixed(6)+'">\n'+
-      '    <name>'+esc(it.name||"")+'</name>\n'+
-      (it.addr?'    <desc>'+esc(it.addr)+'</desc>\n':'')+
-      (it.website?'    <link href="'+esc(it.website)+'"/>\n':'')+
-      '    <sym>Lodging</sym>\n  </wpt>').join("\n");
+    // GPX-1.1-Reihenfolge in <wpt>: name, desc, link, sym, type
+    const wpts=items.map(it=>{
+      const sym=GPX_SYM[it.cat]||"Flag, Blue";
+      const desc=[it.kind,it.addr].filter(Boolean).join(" — ");
+      const link=safeUrl(it.website)||safeUrl(it.wiki);
+      return '  <wpt lat="'+(+it.lat).toFixed(6)+'" lon="'+(+it.lon).toFixed(6)+'">\n'+
+        '    <name>'+esc(it.name||"")+'</name>\n'+
+        (desc?'    <desc>'+esc(desc)+'</desc>\n':'')+
+        (link?'    <link href="'+esc(link)+'"/>\n':'')+
+        '    <sym>'+esc(sym)+'</sym>\n'+
+        (it.kind?'    <type>'+esc(it.kind)+'</type>\n':'')+
+        '  </wpt>';
+    }).join("\n");
     return '<?xml version="1.0" encoding="UTF-8"?>\n'+
       '<gpx version="1.1" creator="Abseits" xmlns="http://www.topografix.com/GPX/1/1">\n'+
       '  <metadata><name>Abseits — Merkliste</name></metadata>\n'+wpts+'\n</gpx>\n';
@@ -1081,7 +1098,9 @@
       const id="it"+i;
       const color=mode==="entdecken" ? (POI_COLORS[it.cat]||MC.slate)
         : (it.website&&!it.isPlatform?MC.pine:it.phone?MC.ochre:it.isPlatform?MC.flag:MC.slate);
-      const marker=L.circleMarker([it.lat,it.lon],{radius:8,color:"#fff",weight:2,fillColor:color,fillOpacity:1});
+      // divIcon: kleiner sichtbarer Punkt in 40×40-Tap-Fläche (fingerfreundlich)
+      const icon=L.divIcon({className:"poi-pin",html:'<i class="dot" style="background:'+color+'"></i>',iconSize:[40,40],iconAnchor:[20,20],popupAnchor:[0,-9]});
+      const marker=L.marker([it.lat,it.lon],{icon});
       marker.__it=it;
       marker.bindPopup(popup(it));
       cluster.addLayer(marker);
