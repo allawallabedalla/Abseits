@@ -1316,7 +1316,7 @@
     } else if(e.key==="Enter"){ doSearch(); }
   });
   nearBtn.addEventListener("click",nearMe);
-  hereBtn.addEventListener("click",()=>{ setView("list"); const c=map.getCenter(); updateHash({lat:c.lat.toFixed(5),lon:c.lng.toFixed(5),z:map.getZoom()}); fetchArea(); });
+  hereBtn.addEventListener("click",()=>{ const c=map.getCenter(); updateHash({lat:c.lat.toFixed(5),lon:c.lng.toFixed(5),z:map.getZoom()}); fetchArea(); });
   [onlyContact,hidePlatform,hideChains,onlyAccessible,onlyWifi,onlyFree].forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
   onlyContact.addEventListener("change",()=>{ contactNote.hidden=!onlyContact.checked; });
   document.querySelectorAll(".cat").forEach(el=>el.addEventListener("change",()=>{savePrefs();if(results.length)render();}));
