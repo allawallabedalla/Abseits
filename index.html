@@ -317,6 +317,7 @@
         <label class="switch"><span class="lab">Nur naturnah<small>Nur Natur &amp; Wasser zeigen</small></span><input type="checkbox" id="poiNature"><span class="ui"></span></label>
         <label class="switch"><span class="lab">Nur mit Namen<small>Unbenannte Punkte ausblenden</small></span><input type="checkbox" id="poiNamed"><span class="ui"></span></label>
         <label class="switch"><span class="lab">Wanderwege<small>Markierte Wege als Linie auf der Karte (laut OSM)</small></span><input type="checkbox" id="showTrails"><span class="ui"></span></label>
+        <p class="switch-note" id="trailsHint" hidden>Bitte näher heranzoomen (Kartenausschnitt sonst zu groß für Wanderwege).</p>
 
         <h2>Was entdecken?</h2>
         <label class="switch"><span class="lab">Natur &amp; Aussicht<small>Aussichtspunkte, Wasserfälle, Höhlen</small></span><input type="checkbox" class="pcat" data-pcat="natur" checked><span class="ui"></span></label>
@@ -497,6 +498,7 @@
   const map=L.map("map",{scrollWheelZoom:true,zoomControl:true}).setView([50.55,9.67],11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
   const trailLayer=L.layerGroup().addTo(map);   // Wanderwege (Entdecken, opt-in)
+  const trailRenderer=L.canvas();   // Canvas statt SVG: bleibt bei vielen Linien flüssig
   const cluster=L.markerClusterGroup({maxClusterRadius:50,showCoverageOnHover:false});
   map.addLayer(cluster);
   map.on("popupopen",e=>{
@@ -1043,6 +1045,15 @@
     demanding_mountain_hiking:"T3 · Anspruchsvoll",alpine_hiking:"T4 · Alpin",
     demanding_alpine_hiking:"T5 · Anspruchsvoll alpin",difficult_alpine_hiking:"T6 · Schwierig alpin"
   };
+  // Zu viele/zu lange Linien blockieren beim Rendern kurz den Hauptthread
+  // (fühlt sich wie ein Hänger an) — daher Element- und Punktzahl deckeln.
+  const TRAILS_MIN_ZOOM=13, TRAILS_MAX_ELEMENTS=300, TRAILS_MAX_PTS=120;
+  function simplifyLatLngs(latlngs,maxPts){
+    if(latlngs.length<=maxPts) return latlngs;
+    const step=(latlngs.length-1)/(maxPts-1), out=[];
+    for(let i=0;i<maxPts;i++) out.push(latlngs[Math.round(i*step)]);
+    return out;
+  }
   async function fetchTrails(b){
     const s=b.getSouth(),w=b.getWest(),n=b.getNorth(),e=b.getEast(),bbox=`(${s},${w},${n},${e})`;
     // Nur explizit als Wanderweg gekennzeichnete Wege (sac_scale/trail_visibility) —
@@ -1050,27 +1061,40 @@
     const query=`[out:json][timeout:25];(`+
       `way["highway"~"^(path|footway|track|steps)$"]["sac_scale"]${bbox};`+
       `way["highway"~"^(path|footway)$"]["trail_visibility"]${bbox};`+
-      `);out geom 500;`;
+      `);out geom ${TRAILS_MAX_ELEMENTS};`;
     return (await overpass(query)).map(el=>{
       if(!el.geometry||el.geometry.length<2) return null;
       const t=el.tags||{};
-      return {latlngs:el.geometry.map(g=>[g.lat,g.lon]),name:t.name||"Wanderweg",sac:SAC_LABELS[t.sac_scale]||""};
+      return {latlngs:simplifyLatLngs(el.geometry.map(g=>[g.lat,g.lon]),TRAILS_MAX_PTS),name:t.name||"Wanderweg",sac:SAC_LABELS[t.sac_scale]||""};
     }).filter(Boolean);
   }
   function renderTrails(trails){
     trailLayer.clearLayers();
     trails.forEach(t=>{
-      const line=L.polyline(t.latlngs,{color:MC.ochre,weight:3.5,opacity:.8,dashArray:"1 7",lineCap:"round"});
+      const line=L.polyline(t.latlngs,{renderer:trailRenderer,color:MC.ochre,weight:3.5,opacity:.8,dashArray:"1 7",lineCap:"round"});
       const label=esc(t.name)+(t.sac?" · "+esc(t.sac):"");
       line.bindPopup(label);
       trailLayer.addLayer(line);
     });
   }
-  // Wanderwege je nach Modus/Schalter nachladen oder ausblenden (nicht Teil
-  // der Fehler-/Cache-Logik von fetchArea — rein optische Zusatzebene)
+  // Wanderwege je nach Modus/Schalter/Zoom nachladen oder ausblenden (nicht
+  // Teil der Fehler-/Cache-Logik von fetchArea — rein optische Zusatzebene).
+  // Erst ab TRAILS_MIN_ZOOM laden: sonst wäre der Kartenausschnitt zu groß
+  // (zu viele Treffer, zu lange Ladezeit, spürbares Rendering-Ruckeln).
   function updateTrails(b){
-    if(mode==="entdecken"&&showTrails.checked) fetchTrails(b).then(renderTrails).catch(()=>{});
-    else trailLayer.clearLayers();
+    const hint=$("trailsHint");
+    if(mode==="entdecken"&&showTrails.checked){
+      if(map.getZoom()<TRAILS_MIN_ZOOM){
+        trailLayer.clearLayers();
+        if(hint) hint.hidden=false;
+        return;
+      }
+      if(hint) hint.hidden=true;
+      fetchTrails(b).then(renderTrails).catch(()=>{});
+    } else {
+      trailLayer.clearLayers();
+      if(hint) hint.hidden=true;
+    }
   }
   showTrails.addEventListener("change",()=>{ savePrefs(); updateTrails(map.getBounds()); });
   // Thumbnail aus OSM-Tags: Wikimedia Commons (zuverlässig) oder direkter image-Link
