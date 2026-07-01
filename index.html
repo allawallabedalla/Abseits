@@ -854,7 +854,7 @@
     markProg();
     map.setView(ll,14);
     updateHash({lat:ll.lat.toFixed(5),lon:ll.lng.toFixed(5),z:14});
-    setView("list");
+    setView("map");   // Treffer direkt auf der Karte zeigen, nicht in der Liste
     fetchArea(ll.toBounds(6000));
     savePrefs();
   }
