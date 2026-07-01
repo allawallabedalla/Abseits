@@ -114,6 +114,10 @@
   .sheet-body .disc{font-size:12.8px;line-height:1.5;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-top:8px}
   .sheet-body .disc a{color:var(--pine)}
   .sheet-body .ver{font-size:12.5px;color:var(--slate);margin-top:18px}
+  .offarea{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .offarea-info{flex:1;min-width:120px;display:flex;flex-direction:column}
+  .offarea-info small{color:var(--muted);font-size:12px}
+  .offarea .btn{min-height:36px;padding:0 12px;font-size:13.5px}
 
   /* ---- POI-Thumbnails ---- */
   .item .thumb{width:100%;height:160px;object-fit:cover;border-radius:10px;margin-bottom:10px;display:block;background:var(--card)}
@@ -366,6 +370,12 @@
       <h3>Als App installieren</h3>
       <p>Am iPhone in <b>Safari</b> öffnen → <b>Teilen-Symbol</b> → <b>„Zum Home-Bildschirm"</b>. Danach startet Abseits als eigenes App-Icon im Vollbild — ohne Browser-Leiste und auch offline nutzbar.</p>
 
+      <h3>Offline-Gebiete</h3>
+      <p class="hint">Speichert Kartenkacheln &amp; die letzten Treffer des aktuellen Kartenausschnitts lokal — praktisch dort, wo unterwegs kein Netz ist. Bitte vorher näher heranzoomen (max. 400 Kacheln pro Speicherung).</p>
+      <div class="keyrow"><button type="button" id="saveOffline" class="btn ghost">Diesen Ausschnitt speichern</button></div>
+      <p class="hint" id="offlineStatus"></p>
+      <div id="offlineAreas"></div>
+
       <h3>Datenquellen &amp; Lizenz</h3>
       <p class="disc">
         Karten- und Ortsdaten: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende (ODbL). Unterkünfte teils über Google. Bilder ggf. von Wikimedia Commons, weiterführende Infos von Wikipedia.<br>
@@ -571,16 +581,21 @@
   // ---- Merkliste / Favoriten (IndexedDB, offline) ----
   let favs=new Map();
   const favKey=it=>(it.name||"")+"@"+(+it.lat).toFixed(4)+","+(+it.lon).toFixed(4);
+  // DB-Version 2: zweiter Objectstore "areas" für offline gespeicherte Gebiete
   function idb(){
     return new Promise((res,rej)=>{
-      const r=indexedDB.open("abseits",1);
-      r.onupgradeneeded=()=>r.result.createObjectStore("favs",{keyPath:"key"});
+      const r=indexedDB.open("abseits",2);
+      r.onupgradeneeded=()=>{
+        const db=r.result;
+        if(!db.objectStoreNames.contains("favs")) db.createObjectStore("favs",{keyPath:"key"});
+        if(!db.objectStoreNames.contains("areas")) db.createObjectStore("areas",{keyPath:"key"});
+      };
       r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
     });
   }
-  function idbWrite(fn){
+  function idbWrite(store,fn){
     return idb().then(db=>new Promise((res,rej)=>{
-      const tx=db.transaction("favs","readwrite"); fn(tx.objectStore("favs"));
+      const tx=db.transaction(store,"readwrite"); fn(tx.objectStore(store));
       tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
     }));
   }
@@ -594,7 +609,7 @@
   function toggleFav(it,btn){
     const key=favKey(it);
     if(favs.has(key)){
-      favs.delete(key); idbWrite(s=>s.delete(key)).catch(()=>{});
+      favs.delete(key); idbWrite("favs",s=>s.delete(key)).catch(()=>{});
       if(btn){ btn.classList.remove("on"); btn.setAttribute("aria-pressed","false"); btn.title="Merken"; btn.setAttribute("aria-label","Merken"); }
       if(appEl.dataset.view==="favs") renderFavs();
     }else{
@@ -603,7 +618,7 @@
         stars:it.stars||0,wheelchair:it.wheelchair||"",wifi:!!it.wifi,
         ele:it.ele||0,fee:it.fee||"",poi:!!it.poi,image:it.image||"",wiki:it.wiki||"",
         isPlatform:!!it.isPlatform,savedAt:Date.now()};
-      favs.set(key,rec); idbWrite(s=>s.put(rec)).catch(()=>{});
+      favs.set(key,rec); idbWrite("favs",s=>s.put(rec)).catch(()=>{});
       if(btn){ btn.classList.add("on"); btn.setAttribute("aria-pressed","true"); btn.title="Gemerkt"; btn.setAttribute("aria-label","Gemerkt"); }
     }
     reflectFav(it);   // alle Darstellungen desselben Ziels sofort angleichen
@@ -640,13 +655,99 @@
   function clearAllFavs(n){
     if(!confirm("Wirklich alle "+n+" gemerkten Einträge entfernen?")) return;
     favs.clear();
-    idbWrite(s=>s.clear()).catch(()=>{});
+    idbWrite("favs",s=>s.clear()).catch(()=>{});
     // Sterne in evtl. sichtbaren Ergebnis-Karten zurücksetzen
     document.querySelectorAll(".item .favbtn.on").forEach(fb=>{
       fb.classList.remove("on"); fb.setAttribute("aria-pressed","false");
       fb.title="Merken"; fb.setAttribute("aria-label","Merken");
     });
     updateFavCount(); renderFavs();
+  }
+
+  // ---- Offline-Gebiete: Kartenkacheln + letzte Treffer lokal speichern ----
+  // (praktisch dort, wo unterwegs kein Netz ist — genau die Abseits-Zielgebiete)
+  const TILE_CACHE="abseits-tiles", MAX_OFFLINE_TILES=400;
+  function lon2tileX(lon,z){ return Math.floor((lon+180)/360*Math.pow(2,z)); }
+  function lat2tileY(lat,z){ return Math.floor((1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*Math.pow(2,z)); }
+  function tileUrlsFor(bounds,z){
+    const xMin=lon2tileX(bounds.getWest(),z), xMax=lon2tileX(bounds.getEast(),z);
+    const yMin=lat2tileY(bounds.getNorth(),z), yMax=lat2tileY(bounds.getSouth(),z);
+    const urls=[];
+    for(let x=xMin;x<=xMax;x++) for(let y=yMin;y<=yMax;y++) urls.push("https://a.tile.openstreetmap.org/"+z+"/"+x+"/"+y+".png");
+    return urls;
+  }
+  async function saveAreaOffline(){
+    const statusEl=$("offlineStatus");
+    if(!("caches" in window)){ if(statusEl) statusEl.textContent="Offline-Speichern wird von diesem Browser nicht unterstützt."; return; }
+    const z=Math.min(map.getZoom(),16);
+    const urls=tileUrlsFor(map.getBounds(),z);
+    if(urls.length>MAX_OFFLINE_TILES){
+      if(statusEl) statusEl.textContent="Ausschnitt zu groß ("+urls.length+" Kacheln) — bitte näher heranzoomen.";
+      return;
+    }
+    if(statusEl) statusEl.textContent="Speichere 0 / "+urls.length+" …";
+    const cache=await caches.open(TILE_CACHE);
+    let next=0, ok=0;
+    async function worker(){
+      let mine;
+      while((mine=next++)<urls.length){
+        try{ const r=await fetch(urls[mine],{mode:"no-cors"}); await cache.put(urls[mine],r); ok++; }
+        catch(e){ /* einzelne Kachel: überspringen, Rest weiterlaufen lassen */ }
+        if(statusEl) statusEl.textContent="Speichere "+Math.min(next,urls.length)+" / "+urls.length+" …";
+      }
+    }
+    await Promise.all(Array.from({length:Math.min(6,urls.length)},worker));
+    const c=map.getCenter();
+    const rec={
+      key:mode+"|"+c.lat.toFixed(3)+","+c.lng.toFixed(3)+"|"+z,
+      mode, lat:c.lat, lon:c.lng, zoom:z,
+      name:qEl.value.trim()||("("+c.lat.toFixed(3)+", "+c.lng.toFixed(3)+")"),
+      results, tileUrls:urls, savedAt:Date.now()
+    };
+    await idbWrite("areas",s=>s.put(rec)).catch(()=>{});
+    if(statusEl) statusEl.textContent = ok ? ("Gespeichert: "+ok+" von "+urls.length+" Kacheln.") : "Speichern fehlgeschlagen — Netzverbindung prüfen.";
+    renderOfflineAreas();
+  }
+  function offlineAreasAll(){
+    return idb().then(db=>new Promise(res=>{
+      const req=db.transaction("areas","readonly").objectStore("areas").getAll();
+      req.onsuccess=()=>res(req.result||[]); req.onerror=()=>res([]);
+    })).catch(()=>[]);
+  }
+  async function deleteOfflineArea(key){
+    const areas=await offlineAreasAll();
+    const area=areas.find(a=>a.key===key);
+    await idbWrite("areas",s=>s.delete(key)).catch(()=>{});
+    if(area&&area.tileUrls&&("caches" in window)){
+      const cache=await caches.open(TILE_CACHE);
+      await Promise.all(area.tileUrls.map(u=>cache.delete(u).catch(()=>{})));
+    }
+    renderOfflineAreas();
+  }
+  function openOfflineArea(key){
+    offlineAreasAll().then(areas=>{
+      const a=areas.find(x=>x.key===key); if(!a) return;
+      if(a.mode!==mode) applyModeUI(a.mode);
+      origin=L.latLng(a.lat,a.lon);
+      map.setView(origin,a.zoom);
+      results=a.results||[]; lastInfo={counts:["Offline-Gebiet: "+results.length]};
+      setView("map"); render();
+      if(mode==="entdecken") updateTrails(map.getBounds());
+      updateHash({lat:a.lat.toFixed(5),lon:a.lon.toFixed(5),z:a.zoom});
+      closeInfo(); savePrefs();
+    });
+  }
+  async function renderOfflineAreas(){
+    const el=$("offlineAreas"); if(!el) return;
+    const areas=(await offlineAreasAll()).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
+    if(!areas.length){ el.innerHTML='<p class="hint">Noch keine Gebiete gespeichert.</p>'; return; }
+    el.innerHTML=areas.map(a=>
+      '<div class="offarea"><div class="offarea-info"><b>'+esc(a.name)+'</b><small>'+(a.mode==="entdecken"?"Entdecken":"Schlafen")+' · '+(a.results?a.results.length:0)+' Treffer · '+(a.tileUrls?a.tileUrls.length:0)+' Kacheln</small></div>'+
+      '<button type="button" class="btn ghost" data-open="'+esc(a.key)+'">Öffnen</button>'+
+      '<button type="button" class="btn ghost" data-del="'+esc(a.key)+'">Löschen</button></div>'
+    ).join("");
+    el.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openOfflineArea(b.dataset.open)));
+    el.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{ if(confirm("Dieses Gebiet löschen?")) deleteOfflineArea(b.dataset.del); }));
   }
 
   // ---- Export & Teilen ----
@@ -760,9 +861,11 @@
 
   // ---- Info-Sheet (ⓘ im Header) ----
   const infoBtn=$("infoBtn"), infoSheet=$("infoSheet"), infoClose=$("infoClose");
-  function openInfo(){ infoSheet.hidden=false; document.body.style.overflow="hidden"; infoClose.focus(); }
+  function openInfo(){ infoSheet.hidden=false; document.body.style.overflow="hidden"; infoClose.focus(); renderOfflineAreas(); }
   function closeInfo(){ infoSheet.hidden=true; document.body.style.overflow=""; infoBtn.focus(); }
   infoBtn.addEventListener("click",openInfo);
+  const saveOfflineBtn=$("saveOffline");
+  if(saveOfflineBtn) saveOfflineBtn.addEventListener("click",saveAreaOffline);
   infoClose.addEventListener("click",closeInfo);
   infoSheet.addEventListener("click",e=>{ if(e.target===infoSheet) closeInfo(); });
   document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!infoSheet.hidden) closeInfo(); });
