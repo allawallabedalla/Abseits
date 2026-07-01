@@ -312,6 +312,7 @@
         <label class="switch"><span class="lab">Nur ohne Eintritt<small>Kostenlose Ziele bevorzugen (laut OSM)</small></span><input type="checkbox" id="poiFree" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Nur naturnah<small>Nur Natur &amp; Wasser zeigen</small></span><input type="checkbox" id="poiNature"><span class="ui"></span></label>
         <label class="switch"><span class="lab">Nur mit Namen<small>Unbenannte Punkte ausblenden</small></span><input type="checkbox" id="poiNamed"><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Wanderwege<small>Markierte Wege als Linie auf der Karte (laut OSM)</small></span><input type="checkbox" id="showTrails"><span class="ui"></span></label>
 
         <h2>Was entdecken?</h2>
         <label class="switch"><span class="lab">Natur &amp; Aussicht<small>Aussichtspunkte, Wasserfälle, Höhlen</small></span><input type="checkbox" class="pcat" data-pcat="natur" checked><span class="ui"></span></label>
@@ -485,6 +486,7 @@
 
   const map=L.map("map",{scrollWheelZoom:true,zoomControl:true}).setView([50.55,9.67],11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+  const trailLayer=L.layerGroup().addTo(map);   // Wanderwege (Entdecken, opt-in)
   const cluster=L.markerClusterGroup({maxClusterRadius:50,showCoverageOnHover:false});
   map.addLayer(cluster);
   map.on("popupopen",e=>{
@@ -514,7 +516,7 @@
   const useGoogle=$("useGoogle"), useOsm=$("useOsm"), onlyContact=$("onlyContact"), hidePlatform=$("hidePlatform"), hideChains=$("hideChains");
   const onlyAccessible=$("onlyAccessible"), onlyWifi=$("onlyWifi"), onlyFree=$("onlyFree"), autoSearch=$("autoSearch"), autoNote=$("autoNote");
   const keyEl=$("key"), saveKey=$("saveKey"), contactNote=$("contactNote");
-  const poiFree=$("poiFree"), poiNature=$("poiNature"), poiNamed=$("poiNamed"), tagline=$("tagline");
+  const poiFree=$("poiFree"), poiNature=$("poiNature"), poiNamed=$("poiNamed"), showTrails=$("showTrails"), tagline=$("tagline");
 
   keyEl.value=localStorage.getItem("abseits_gkey")||"";
   saveKey.addEventListener("click",()=>{localStorage.setItem("abseits_gkey",keyEl.value.trim());saveKey.textContent="Gespeichert ✓";setTimeout(()=>saveKey.textContent="Speichern",1500);});
@@ -535,7 +537,7 @@
       useGoogle:useGoogle.checked,useOsm:useOsm.checked,onlyContact:onlyContact.checked,
       hidePlatform:hidePlatform.checked,hideChains:hideChains.checked,
       onlyAccessible:onlyAccessible.checked,onlyWifi:onlyWifi.checked,onlyFree:onlyFree.checked,autoSearch:autoSearch.checked,
-      poiFree:poiFree.checked,poiNature:poiNature.checked,poiNamed:poiNamed.checked,
+      poiFree:poiFree.checked,poiNature:poiNature.checked,poiNamed:poiNamed.checked,showTrails:showTrails.checked,
       cats,pcats,mode,view:appEl.dataset.view
     })); }catch(e){}
   }
@@ -543,7 +545,7 @@
     let p; try{ p=JSON.parse(localStorage.getItem("abseits_prefs")||"{}"); }catch(e){ p={}; }
     [["useGoogle",useGoogle],["useOsm",useOsm],["onlyContact",onlyContact],["hidePlatform",hidePlatform],["hideChains",hideChains],
      ["onlyAccessible",onlyAccessible],["onlyWifi",onlyWifi],["onlyFree",onlyFree],["autoSearch",autoSearch],
-     ["poiFree",poiFree],["poiNature",poiNature],["poiNamed",poiNamed]]
+     ["poiFree",poiFree],["poiNature",poiNature],["poiNamed",poiNamed],["showTrails",showTrails]]
       .forEach(([k,el])=>{ if(typeof p[k]==="boolean") el.checked=p[k]; });
     if(p.cats) document.querySelectorAll(".cat").forEach(c=>{ if(c.dataset.cat in p.cats) c.checked=p.cats[c.dataset.cat]; });
     if(p.pcats) document.querySelectorAll(".pcat").forEach(c=>{ if(c.dataset.pcat in p.pcats) c.checked=p.pcats[c.dataset.pcat]; });
@@ -930,6 +932,44 @@
       if(m) m.marker.setPopupContent(popup(it));
     });
   }
+
+  // ---- Wanderwege (Entdecken, opt-in) ----
+  // SAC-Wanderskala: grobe Schwierigkeitseinstufung, wo von OSM vergeben
+  const SAC_LABELS={
+    hiking:"T1 · Wandern",mountain_hiking:"T2 · Bergwandern",
+    demanding_mountain_hiking:"T3 · Anspruchsvoll",alpine_hiking:"T4 · Alpin",
+    demanding_alpine_hiking:"T5 · Anspruchsvoll alpin",difficult_alpine_hiking:"T6 · Schwierig alpin"
+  };
+  async function fetchTrails(b){
+    const s=b.getSouth(),w=b.getWest(),n=b.getNorth(),e=b.getEast(),bbox=`(${s},${w},${n},${e})`;
+    // Nur explizit als Wanderweg gekennzeichnete Wege (sac_scale/trail_visibility) —
+    // nicht jeder Feld-/Waldweg, sonst wird die Karte zu voll.
+    const query=`[out:json][timeout:25];(`+
+      `way["highway"~"^(path|footway|track|steps)$"]["sac_scale"]${bbox};`+
+      `way["highway"~"^(path|footway)$"]["trail_visibility"]${bbox};`+
+      `);out geom 500;`;
+    return (await overpass(query)).map(el=>{
+      if(!el.geometry||el.geometry.length<2) return null;
+      const t=el.tags||{};
+      return {latlngs:el.geometry.map(g=>[g.lat,g.lon]),name:t.name||"Wanderweg",sac:SAC_LABELS[t.sac_scale]||""};
+    }).filter(Boolean);
+  }
+  function renderTrails(trails){
+    trailLayer.clearLayers();
+    trails.forEach(t=>{
+      const line=L.polyline(t.latlngs,{color:MC.ochre,weight:3.5,opacity:.8,dashArray:"1 7",lineCap:"round"});
+      const label=esc(t.name)+(t.sac?" · "+esc(t.sac):"");
+      line.bindPopup(label);
+      trailLayer.addLayer(line);
+    });
+  }
+  // Wanderwege je nach Modus/Schalter nachladen oder ausblenden (nicht Teil
+  // der Fehler-/Cache-Logik von fetchArea — rein optische Zusatzebene)
+  function updateTrails(b){
+    if(mode==="entdecken"&&showTrails.checked) fetchTrails(b).then(renderTrails).catch(()=>{});
+    else trailLayer.clearLayers();
+  }
+  showTrails.addEventListener("change",()=>{ savePrefs(); updateTrails(map.getBounds()); });
   // Thumbnail aus OSM-Tags: Wikimedia Commons (zuverlässig) oder direkter image-Link
   function poiImage(t){
     const wm=t.wikimedia_commons||"";
@@ -1059,6 +1099,7 @@
         AREA_CACHE.delete(ckey); AREA_CACHE.set(ckey,hit); // als zuletzt genutzt markieren
         results=hit.results; lastInfo=hit.info; render();
         if(mode==="entdecken") enrichAndPaint();
+        updateTrails(b);
         return;
       }
       // r.length am jeweiligen Abfrage-Limit => vermutlich abgeschnitten (info.truncated)
@@ -1078,10 +1119,12 @@
       lastInfo=info;
       render();
       if(mode==="entdecken") enrichAndPaint();   // Bilder im Hintergrund nachtragen
+      updateTrails(b);
       if(!info.errs.length) cacheStore(ckey,results,info);   // nur erfolgreiche Abrufe cachen
     }catch(e){
       info.errs.push("Fehler: "+(e&&e.message||e));
       lastInfo=info; render();
+      updateTrails(b);
     }finally{
       // Buttons immer wieder freigeben — sonst bleibt „Suchen“/„Kartenbereich durchsuchen“ ausgegraut
       busy=false; goBtn.disabled=hereBtn.disabled=false;
