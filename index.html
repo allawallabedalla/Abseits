@@ -541,6 +541,16 @@
   }
 
   let markers=[], results=[], busy=false, lastInfo={}, origin=null, mode="schlafen";
+  // Ergebnis-Cache für die Sitzung: gleiche Gegend+Modus+Quelle nicht erneut abrufen
+  const AREA_CACHE=new Map(), AREA_CACHE_MAX=20;
+  function cacheKey(b){
+    const src=mode==="entdecken"?"osm":(useOsm.checked?"o":"")+(useGoogle.checked?"g":"");
+    return mode+"|"+[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(x=>x.toFixed(4)).join(",")+"|"+src;
+  }
+  function cacheStore(k,res,inf){
+    AREA_CACHE.set(k,{results:res,info:inf});
+    if(AREA_CACHE.size>AREA_CACHE_MAX) AREA_CACHE.delete(AREA_CACHE.keys().next().value);
+  }
   const isApple=/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
 
   // ---- Merkliste / Favoriten (IndexedDB, offline) ----
@@ -968,8 +978,17 @@
     busy=true; goBtn.disabled=hereBtn.disabled=true; setStatus("Suche läuft …");
     const b=boundsArg||map.getBounds(), key=(localStorage.getItem("abseits_gkey")||"").trim();
     origin=b.getCenter(); // Bezugspunkt für Entfernung (Suchort bzw. eigener Standort)
+    const ckey=cacheKey(b);
     const tasks=[], info={counts:[],errs:[]};
     try{
+      // Cache-Treffer: gleiche Gegend/Modus/Quelle → sofort ohne Netz anzeigen
+      const hit=AREA_CACHE.get(ckey);
+      if(hit){
+        AREA_CACHE.delete(ckey); AREA_CACHE.set(ckey,hit); // als zuletzt genutzt markieren
+        results=hit.results; lastInfo=hit.info; render();
+        if(mode==="entdecken") enrichAndPaint();
+        return;
+      }
       // r.length am jeweiligen Abfrage-Limit => vermutlich abgeschnitten (info.truncated)
       if(mode==="entdecken"){
         // Entdecken: nur OpenStreetMap (kostenlos, ohne Key) — POIs in der Umgebung
@@ -987,6 +1006,7 @@
       lastInfo=info;
       render();
       if(mode==="entdecken") enrichAndPaint();   // Bilder im Hintergrund nachtragen
+      if(!info.errs.length) cacheStore(ckey,results,info);   // nur erfolgreiche Abrufe cachen
     }catch(e){
       info.errs.push("Fehler: "+(e&&e.message||e));
       lastInfo=info; render();
