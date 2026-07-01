@@ -623,10 +623,24 @@
     if(!items.length){ favsEl.innerHTML='<p class="status">Noch nichts gemerkt. Tippe bei einer Unterkunft auf <b>★ Merken</b> — gemerkte Häuser bleiben hier gespeichert, auch offline.</p>'; return; }
     favsEl.innerHTML='<div class="favbar"><span class="count">'+items.length+' gemerkt</span>'+
       '<button type="button" class="btn ghost" id="favGpx">GPX</button>'+
-      (canShare?'<button type="button" class="btn ghost" id="favShare">Teilen</button>':'')+'</div>';
+      (canShare?'<button type="button" class="btn ghost" id="favShare">Teilen</button>':'')+
+      '<button type="button" class="btn ghost" id="favClear">Leeren</button></div>';
     items.forEach(it=>favsEl.appendChild(makeCard(it,{})));
     const g=$("favGpx"); if(g) g.addEventListener("click",()=>exportGpx(items));
     const s=$("favShare"); if(s) s.addEventListener("click",()=>shareList(items));
+    const c=$("favClear"); if(c) c.addEventListener("click",()=>clearAllFavs(items.length));
+  }
+  // Ganze Merkliste leeren (mit Rückfrage)
+  function clearAllFavs(n){
+    if(!confirm("Wirklich alle "+n+" gemerkten Einträge entfernen?")) return;
+    favs.clear();
+    idbWrite(s=>s.clear()).catch(()=>{});
+    // Sterne in evtl. sichtbaren Ergebnis-Karten zurücksetzen
+    document.querySelectorAll(".item .favbtn.on").forEach(fb=>{
+      fb.classList.remove("on"); fb.setAttribute("aria-pressed","false");
+      fb.title="Merken"; fb.setAttribute("aria-label","Merken");
+    });
+    updateFavCount(); renderFavs();
   }
 
   // ---- Export & Teilen ----
