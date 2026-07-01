@@ -491,12 +491,18 @@
     if(cp&&!cp.dataset.wired){ cp.dataset.wired="1"; cp.addEventListener("click",()=>copyCoords(cp.dataset.lat,cp.dataset.lon,cp)); }
     const it=e.popup._source&&e.popup._source.__it;
     const fv=el.querySelector(".popfav");
-    if(it&&fv&&!fv.dataset.wired){ fv.dataset.wired="1"; fv.addEventListener("click",()=>{
-      toggleFav(it,null);
+    if(it&&fv){
+      // Beim Öffnen immer den aktuellen Merken-Stand zeigen (kein Geister-Stern)
       const on=favs.has(favKey(it));
       fv.setAttribute("aria-pressed",on?"true":"false");
       fv.textContent=on?"★ Gemerkt":"☆ Merken";
-    }); }
+      if(!fv.dataset.wired){ fv.dataset.wired="1"; fv.addEventListener("click",()=>{
+        toggleFav(it,null);
+        const now=favs.has(favKey(it));
+        fv.setAttribute("aria-pressed",now?"true":"false");
+        fv.textContent=now?"★ Gemerkt":"☆ Merken";
+      }); }
+    }
   });
 
   const $=id=>document.getElementById(id);
@@ -594,7 +600,19 @@
       favs.set(key,rec); idbWrite(s=>s.put(rec)).catch(()=>{});
       if(btn){ btn.classList.add("on"); btn.setAttribute("aria-pressed","true"); btn.title="Gemerkt"; btn.setAttribute("aria-label","Gemerkt"); }
     }
+    reflectFav(it);   // alle Darstellungen desselben Ziels sofort angleichen
     updateFavCount();
+  }
+  // Merken-Stern in allen sichtbaren Karten (Liste + Merkliste) synchron halten
+  function reflectFav(it){
+    const key=favKey(it), on=favs.has(key);
+    document.querySelectorAll(".item").forEach(c=>{
+      if(c.dataset.key!==key) return;
+      const fb=c.querySelector(".favbtn"); if(!fb) return;
+      fb.classList.toggle("on",on);
+      fb.setAttribute("aria-pressed",on?"true":"false");
+      fb.title=on?"Gemerkt":"Merken"; fb.setAttribute("aria-label",on?"Gemerkt":"Merken");
+    });
   }
   function updateFavCount(){
     const b=document.querySelector('.seg button[data-view="favs"]'); if(!b) return;
