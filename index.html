@@ -1107,10 +1107,11 @@
   function render(){
     clearMarkers();
     const items=visible();
+    // Nur noch Hinweise/Fehler zeigen (z. B. Quelle nicht erreichbar) — die
+    // technische Quell-Aufschlüsselung bei Erfolg entfällt (die Zahl steht unten).
     let diag="";
-    if(lastInfo.counts?.length||lastInfo.errs?.length){
-      const parts=[...(lastInfo.counts||[]).map(c=>'<b>'+esc(c)+'</b>'),...(lastInfo.errs||[]).map(e=>'<span class="err">'+esc(e)+'</span>')];
-      diag='<div class="diag">Gefunden — '+parts.join(" · ")+'</div>';
+    if(lastInfo.errs?.length){
+      diag='<div class="diag">'+lastInfo.errs.map(e=>'<span class="err">'+esc(e)+'</span>').join(" · ")+'</div>';
     }
     const noun=mode==="entdecken"?"Ziele":"Unterkünfte";
     if(!items.length){
