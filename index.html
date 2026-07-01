@@ -464,6 +464,8 @@
   const starSvg='<svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.5 9.7l5.9-.9z"/></svg>';
   const mailSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>';
   const shareSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>';
+  const bedSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5"/><path d="M3 18v3M21 18v3M3 13V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4"/></svg>';
+  const compassSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M16 8l-2.5 5.5L8 16l2.5-5.5z"/></svg>';
   const canShare=typeof navigator!=="undefined"&&!!navigator.share;
 
   // Detail-Badges aus OSM-Tags (Sterne, Barrierefreiheit, WLAN)
@@ -502,6 +504,8 @@
         fv.setAttribute("aria-pressed",now?"true":"false");
         fv.textContent=now?"★ Gemerkt":"☆ Merken";
       }); }
+      const jb=el.querySelector(".popjump");
+      if(jb&&!jb.dataset.wired){ jb.dataset.wired="1"; jb.addEventListener("click",()=>jumpMode(it.poi?"schlafen":"entdecken",it.lat,it.lon)); }
     }
   });
 
@@ -714,9 +718,8 @@
       ? 'Gib oben einen Ort ein oder tippe auf das Standort-Symbol. Abseits zeigt spannende Ziele in der Umgebung — Aussichtspunkte, Wasserfälle, Burgen, Badestellen &amp; mehr.'
       : 'Gib oben einen Ort ein. Das Tool durchsucht den Kartenbereich nach Pensionen, Gästehäusern, Ferienwohnungen &amp; Co.';
   }
-  function setMode(m){
-    if(m!=="entdecken") m="schlafen";
-    if(m===mode) return;
+  // Nur die Modus-UI umstellen (Reiter, Tagline) — von setMode() und jumpMode() genutzt
+  function applyModeUI(m){
     mode=m; appEl.dataset.mode=m;
     document.querySelectorAll(".modes button").forEach(b=>{
       const on=b.dataset.mode===m;
@@ -726,12 +729,32 @@
     tagline.textContent = m==="entdecken"
       ? "Spannende Orte in der Umgebung — kostenlos über OpenStreetMap."
       : "Unterkünfte, die ihren eigenen Weg gehen — Google + OpenStreetMap.";
+  }
+  function setMode(m){
+    if(m!=="entdecken") m="schlafen";
+    if(m===mode) return;
+    applyModeUI(m);
     results=[]; clearMarkers(); setView("list");
     if(origin) fetchArea();           // gleiche Gegend, neue Datenquelle
     else setStatus(modeIntro());
     savePrefs();
   }
   document.querySelectorAll(".modes button").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
+
+  // Von einem Treffer aus in den jeweils anderen Modus springen und dort an
+  // dessen Standort suchen — z. B. „Unterkunft hier finden" von einem
+  // Entdecken-POI, oder „Was gibt's hier?" von einer Unterkunft aus.
+  function jumpMode(targetMode,lat,lon){
+    if(targetMode!=="entdecken") targetMode="schlafen";
+    if(targetMode!==mode) applyModeUI(targetMode);
+    const ll=L.latLng(lat,lon);
+    markProg();
+    map.setView(ll,14);
+    updateHash({lat:ll.lat.toFixed(5),lon:ll.lng.toFixed(5),z:14});
+    setView("list");
+    fetchArea(ll.toBounds(6000));
+    savePrefs();
+  }
 
   // ---- Info-Sheet (ⓘ im Header) ----
   const infoBtn=$("infoBtn"), infoSheet=$("infoSheet"), infoClose=$("infoClose");
@@ -1156,6 +1179,9 @@
     if(it.phone) acts.push('<a href="tel:'+esc(it.phone.replace(/\s/g,""))+'" class="iconact" title="Anrufen" aria-label="Anrufen" onclick="event.stopPropagation()">'+phoneSvg+'</a>');
     if(it.email) acts.push('<a href="mailto:'+esc(it.email)+'" onclick="event.stopPropagation()">'+mailSvg+'E-Mail</a>');
     if(canShare) acts.push('<button type="button" class="iconact sharebtn" title="Teilen" aria-label="Teilen">'+shareSvg+'</button>');
+    const jumpTo=it.poi?"schlafen":"entdecken";
+    const jumpLabel=it.poi?"Unterkunft hier finden":"Was gibt's hier?";
+    acts.push('<button type="button" class="iconact jumpbtn" title="'+jumpLabel+'" aria-label="'+jumpLabel+'" onclick="event.stopPropagation()">'+(it.poi?bedSvg:compassSvg)+'</button>');
     acts.push('<button type="button" class="iconact favbtn'+(fav?' on':'')+'" aria-pressed="'+(fav?'true':'false')+'" title="'+(fav?'Gemerkt':'Merken')+'" aria-label="'+(fav?'Gemerkt':'Merken')+'">'+starSvg+'</button>');
 
     const imgUrl=safeUrl(it.image);
@@ -1175,6 +1201,8 @@
     if(fb) fb.addEventListener("click",e=>{ e.stopPropagation(); toggleFav(it,fb); });
     const sb=card.querySelector(".sharebtn");
     if(sb) sb.addEventListener("click",e=>{ e.stopPropagation(); shareItem(it); });
+    const jb=card.querySelector(".jumpbtn");
+    if(jb) jb.addEventListener("click",e=>{ e.stopPropagation(); jumpMode(jumpTo,it.lat,it.lon); });
     return card;
   }
 
@@ -1193,6 +1221,8 @@
     h+='<div style="margin-top:6px"><button type="button" class="copybtn" data-lat="'+it.lat+'" data-lon="'+it.lon+'">GPS kopieren</button></div>';
     const favOn=favs.has(favKey(it));
     h+='<div style="margin-top:6px"><button type="button" class="popfav" aria-pressed="'+(favOn?'true':'false')+'">'+(favOn?'★ Gemerkt':'☆ Merken')+'</button></div>';
+    const jumpLabel=it.poi?"🛏 Unterkunft hier finden":"🧭 Was gibt's hier?";
+    h+='<div style="margin-top:6px"><button type="button" class="popjump">'+jumpLabel+'</button></div>';
     return h;
   }
 
