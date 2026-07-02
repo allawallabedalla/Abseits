@@ -1,5 +1,5 @@
 // Abseits PWA Service Worker
-const CACHE = "abseits-v32";
+const CACHE = "abseits-v33";
 // Kartenkacheln, die Nutzer per "Diesen Ausschnitt speichern" (Info-Sheet)
 // explizit für offline sichern — unversioniert, bleibt über App-Updates hinweg
 const TILE_CACHE = "abseits-tiles";
