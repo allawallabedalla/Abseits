@@ -679,7 +679,8 @@
     return urls;
   }
   async function saveAreaOffline(){
-    const statusEl=$("offlineStatus");
+    const statusEl=$("offlineStatus"), btn=$("saveOffline");
+    if(btn&&btn.disabled) return;   // Doppelklick: keine zweite, überlappende Speicherung
     if(!("caches" in window)){ if(statusEl) statusEl.textContent="Offline-Speichern wird von diesem Browser nicht unterstützt."; return; }
     const z=Math.min(map.getZoom(),16);
     const urls=tileUrlsFor(map.getBounds(),z);
@@ -687,6 +688,8 @@
       if(statusEl) statusEl.textContent="Ausschnitt zu groß ("+urls.length+" Kacheln) — bitte näher heranzoomen.";
       return;
     }
+    if(btn) btn.disabled=true;
+    try{
     if(statusEl) statusEl.textContent="Speichere 0 / "+urls.length+" …";
     const cache=await caches.open(TILE_CACHE);
     let next=0, ok=0;
@@ -709,6 +712,9 @@
     await idbWrite("areas",s=>s.put(rec)).catch(()=>{});
     if(statusEl) statusEl.textContent = ok ? ("Gespeichert: "+ok+" von "+urls.length+" Kacheln.") : "Speichern fehlgeschlagen — Netzverbindung prüfen.";
     renderOfflineAreas();
+    }finally{
+      if(btn) btn.disabled=false;
+    }
   }
   function offlineAreasAll(){
     return idb().then(db=>new Promise(res=>{
@@ -1081,19 +1087,23 @@
   // Teil der Fehler-/Cache-Logik von fetchArea — rein optische Zusatzebene).
   // Erst ab TRAILS_MIN_ZOOM laden: sonst wäre der Kartenausschnitt zu groß
   // (zu viele Treffer, zu lange Ladezeit, spürbares Rendering-Ruckeln).
+  let trailsSeq=0;   // verhindert, dass eine langsamere/veraltete Antwort eine neuere überschreibt
   function updateTrails(b){
     const hint=$("trailsHint");
     if(mode==="entdecken"&&showTrails.checked){
       if(map.getZoom()<TRAILS_MIN_ZOOM){
         trailLayer.clearLayers();
         if(hint) hint.hidden=false;
+        trailsSeq++;
         return;
       }
       if(hint) hint.hidden=true;
-      fetchTrails(b).then(renderTrails).catch(()=>{});
+      const seq=++trailsSeq;
+      fetchTrails(b).then(trails=>{ if(seq===trailsSeq) renderTrails(trails); }).catch(()=>{});
     } else {
       trailLayer.clearLayers();
       if(hint) hint.hidden=true;
+      trailsSeq++;
     }
   }
   showTrails.addEventListener("change",()=>{ savePrefs(); updateTrails(map.getBounds()); });
