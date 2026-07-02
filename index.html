@@ -317,8 +317,10 @@
         <label class="switch"><span class="lab">Nur ohne Eintritt<small>Kostenlose Ziele bevorzugen (laut OSM)</small></span><input type="checkbox" id="poiFree" checked><span class="ui"></span></label>
         <label class="switch"><span class="lab">Nur naturnah<small>Nur Natur &amp; Wasser zeigen</small></span><input type="checkbox" id="poiNature"><span class="ui"></span></label>
         <label class="switch"><span class="lab">Nur mit Namen<small>Unbenannte Punkte ausblenden</small></span><input type="checkbox" id="poiNamed"><span class="ui"></span></label>
-        <label class="switch"><span class="lab">Wanderwege<small>Markierte Wege als Linie auf der Karte (laut OSM)</small></span><input type="checkbox" id="showTrails"><span class="ui"></span></label>
+        <label class="switch"><span class="lab">Wanderwege<small>Markierte Wege als orange Linie (laut OSM)</small></span><input type="checkbox" id="showTrails"><span class="ui"></span></label>
         <p class="switch-note" id="trailsHint" hidden>Bitte näher heranzoomen (Kartenausschnitt sonst zu groß für Wanderwege).</p>
+        <label class="switch"><span class="lab">Radfernwege<small>Nationale/internationale Radrouten als blaue Linie, z. B. D-Routen, EuroVelo</small></span><input type="checkbox" id="showBikeRoutes"><span class="ui"></span></label>
+        <p class="switch-note" id="bikeHint" hidden>Bitte näher heranzoomen (Kartenausschnitt sonst zu groß für Radfernwege).</p>
 
         <h2>Was entdecken?</h2>
         <label class="switch"><span class="lab">Natur &amp; Aussicht<small>Aussichtspunkte, Wasserfälle, Höhlen</small></span><input type="checkbox" class="pcat" data-pcat="natur" checked><span class="ui"></span></label>
@@ -399,7 +401,7 @@
   // Sichtbare Versionsnummer (Header-Badge + Info-Sheet) — bei jedem Deploy
   // zusammen mit dem Service-Worker-Cache in sw.js bumpen (gleicher Stand),
   // damit Rückmeldungen/Bugreports eindeutig einer Version zuzuordnen sind.
-  const APP_VERSION = "v31";
+  const APP_VERSION = "v32";
 
   // Optionaler Proxy (Cloudflare Worker): hält den Google-Key zentral.
   // Nach dem Deploy hier die Worker-URL eintragen, z. B.
@@ -504,7 +506,8 @@
   const map=L.map("map",{scrollWheelZoom:true,zoomControl:true}).setView([50.55,9.67],11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
   const trailLayer=L.layerGroup().addTo(map);   // Wanderwege (Entdecken, opt-in)
-  const trailRenderer=L.canvas();   // Canvas statt SVG: bleibt bei vielen Linien flüssig
+  const bikeLayer=L.layerGroup().addTo(map);    // Radfernwege (Entdecken, opt-in)
+  const routeRenderer=L.canvas();   // Canvas statt SVG: bleibt bei vielen Linien flüssig
   const cluster=L.markerClusterGroup({maxClusterRadius:50,showCoverageOnHover:false});
   map.addLayer(cluster);
   map.on("popupopen",e=>{
@@ -534,7 +537,7 @@
   const useGoogle=$("useGoogle"), useOsm=$("useOsm"), onlyContact=$("onlyContact"), hidePlatform=$("hidePlatform"), hideChains=$("hideChains");
   const onlyAccessible=$("onlyAccessible"), onlyWifi=$("onlyWifi"), onlyFree=$("onlyFree"), autoSearch=$("autoSearch"), autoNote=$("autoNote");
   const keyEl=$("key"), saveKey=$("saveKey"), contactNote=$("contactNote");
-  const poiFree=$("poiFree"), poiNature=$("poiNature"), poiNamed=$("poiNamed"), showTrails=$("showTrails"), tagline=$("tagline");
+  const poiFree=$("poiFree"), poiNature=$("poiNature"), poiNamed=$("poiNamed"), showTrails=$("showTrails"), showBikeRoutes=$("showBikeRoutes"), tagline=$("tagline");
   $("verBadge").textContent=APP_VERSION;
   const infoVerEl=$("infoVer"); if(infoVerEl) infoVerEl.textContent="Abseits · "+APP_VERSION;
 
@@ -557,7 +560,7 @@
       useGoogle:useGoogle.checked,useOsm:useOsm.checked,onlyContact:onlyContact.checked,
       hidePlatform:hidePlatform.checked,hideChains:hideChains.checked,
       onlyAccessible:onlyAccessible.checked,onlyWifi:onlyWifi.checked,onlyFree:onlyFree.checked,autoSearch:autoSearch.checked,
-      poiFree:poiFree.checked,poiNature:poiNature.checked,poiNamed:poiNamed.checked,showTrails:showTrails.checked,
+      poiFree:poiFree.checked,poiNature:poiNature.checked,poiNamed:poiNamed.checked,showTrails:showTrails.checked,showBikeRoutes:showBikeRoutes.checked,
       cats,pcats,mode,view:appEl.dataset.view
     })); }catch(e){}
   }
@@ -565,7 +568,7 @@
     let p; try{ p=JSON.parse(localStorage.getItem("abseits_prefs")||"{}"); }catch(e){ p={}; }
     [["useGoogle",useGoogle],["useOsm",useOsm],["onlyContact",onlyContact],["hidePlatform",hidePlatform],["hideChains",hideChains],
      ["onlyAccessible",onlyAccessible],["onlyWifi",onlyWifi],["onlyFree",onlyFree],["autoSearch",autoSearch],
-     ["poiFree",poiFree],["poiNature",poiNature],["poiNamed",poiNamed],["showTrails",showTrails]]
+     ["poiFree",poiFree],["poiNature",poiNature],["poiNamed",poiNamed],["showTrails",showTrails],["showBikeRoutes",showBikeRoutes]]
       .forEach(([k,el])=>{ if(typeof p[k]==="boolean") el.checked=p[k]; });
     if(p.cats) document.querySelectorAll(".cat").forEach(c=>{ if(c.dataset.cat in p.cats) c.checked=p.cats[c.dataset.cat]; });
     if(p.pcats) document.querySelectorAll(".pcat").forEach(c=>{ if(c.dataset.pcat in p.pcats) c.checked=p.pcats[c.dataset.pcat]; });
@@ -748,7 +751,7 @@
       map.setView(origin,a.zoom);
       results=a.results||[]; lastInfo={counts:["Offline-Gebiet: "+results.length]};
       setView("map"); render();
-      if(mode==="entdecken") updateTrails(map.getBounds());
+      if(mode==="entdecken"){ updateTrails(map.getBounds()); updateBikeRoutes(map.getBounds()); }
       updateHash({lat:a.lat.toFixed(5),lon:a.lon.toFixed(5),z:a.zoom});
       closeInfo(); savePrefs();
     });
@@ -1052,7 +1055,7 @@
     });
   }
 
-  // ---- Wanderwege (Entdecken, opt-in) ----
+  // ---- Wanderwege & Radfernwege (Entdecken, opt-in) ----
   // SAC-Wanderskala: grobe Schwierigkeitseinstufung, wo von OSM vergeben
   const SAC_LABELS={
     hiking:"T1 · Wandern",mountain_hiking:"T2 · Bergwandern",
@@ -1060,61 +1063,100 @@
     demanding_alpine_hiking:"T5 · Anspruchsvoll alpin",difficult_alpine_hiking:"T6 · Schwierig alpin"
   };
   // Zu viele/zu lange Linien blockieren beim Rendern kurz den Hauptthread
-  // (fühlt sich wie ein Hänger an) — daher Element- und Punktzahl deckeln.
+  // (fühlt sich wie ein Hänger an) — daher Element-, Mitglieder- und Punktzahl deckeln.
   const TRAILS_MIN_ZOOM=13, TRAILS_MAX_ELEMENTS=300, TRAILS_MAX_PTS=120;
+  const HIKE_MAX_RELATIONS=40, HIKE_MAX_MEMBERS=200;
+  const BIKE_MIN_ZOOM=10, BIKE_MAX_RELATIONS=25, BIKE_MAX_MEMBERS=200, BIKE_MAX_PTS=140;
   function simplifyLatLngs(latlngs,maxPts){
     if(latlngs.length<=maxPts) return latlngs;
     const step=(latlngs.length-1)/(maxPts-1), out=[];
     for(let i=0;i<maxPts;i++) out.push(latlngs[Math.round(i*step)]);
     return out;
   }
+  // Eine Relation (mit eingebetteter Mitglieder-Geometrie, via "out geom") in
+  // einzelne Liniensegmente zerlegen — alle mit Name/Kennung der Relation,
+  // denn die tragen i. d. R. nur die Relation, nicht die einzelnen Wege.
+  function relationToLines(el,maxMembers,maxPts,label){
+    const members=(el.members||[]).filter(m=>m.type==="way"&&m.geometry&&m.geometry.length>=2).slice(0,maxMembers);
+    return members.map(m=>({latlngs:simplifyLatLngs(m.geometry.map(g=>[g.lat,g.lon]),maxPts),...label}));
+  }
   async function fetchTrails(b){
     const s=b.getSouth(),w=b.getWest(),n=b.getNorth(),e=b.getEast(),bbox=`(${s},${w},${n},${e})`;
-    // Nur explizit als Wanderweg gekennzeichnete Wege (sac_scale/trail_visibility) —
-    // nicht jeder Feld-/Waldweg, sonst wird die Karte zu voll.
-    const query=`[out:json][timeout:25];(`+
+    // 1) Einzelwege, explizit als Wanderweg gekennzeichnet (sac_scale/trail_visibility) —
+    //    v. a. im Alpenraum verbreitet.
+    const wayQuery=`[out:json][timeout:25];(`+
       `way["highway"~"^(path|footway|track|steps)$"]["sac_scale"]${bbox};`+
       `way["highway"~"^(path|footway)$"]["trail_visibility"]${bbox};`+
       `);out geom ${TRAILS_MAX_ELEMENTS};`;
-    return (await overpass(query)).map(el=>{
+    // 2) Benannte Wanderweg-Relationen — im Flach-/Hügelland (z. B. Rhön) der
+    //    weit häufigere Fall; einzelne Wege tragen dort meist keinen sac_scale.
+    const relQuery=`[out:json][timeout:25];relation["route"="hiking"]${bbox};out geom ${HIKE_MAX_RELATIONS};`;
+    const [wayEls,relEls]=await Promise.all([overpass(wayQuery),overpass(relQuery)]);
+    const fromWays=wayEls.map(el=>{
       if(!el.geometry||el.geometry.length<2) return null;
       const t=el.tags||{};
       return {latlngs:simplifyLatLngs(el.geometry.map(g=>[g.lat,g.lon]),TRAILS_MAX_PTS),name:t.name||"Wanderweg",sac:SAC_LABELS[t.sac_scale]||""};
     }).filter(Boolean);
+    const fromRels=relEls.flatMap(el=>{
+      const t=el.tags||{};
+      return relationToLines(el,HIKE_MAX_MEMBERS,TRAILS_MAX_PTS,{name:t.name||"Wanderweg",sac:SAC_LABELS[t.sac_scale]||""});
+    });
+    return [...fromWays,...fromRels];
   }
-  function renderTrails(trails){
-    trailLayer.clearLayers();
-    trails.forEach(t=>{
-      const line=L.polyline(t.latlngs,{renderer:trailRenderer,color:MC.ochre,weight:3.5,opacity:.8,dashArray:"1 7",lineCap:"round"});
-      const label=esc(t.name)+(t.sac?" · "+esc(t.sac):"");
-      line.bindPopup(label);
-      trailLayer.addLayer(line);
+  // Nationale/internationale Radfernwege (D-Routen, EuroVelo …) — bewusst auf
+  // die großen Netze beschränkt (network icn/ncn), sonst wäre jeder lokale
+  // Radweg dabei und die Karte unbrauchbar voll.
+  async function fetchBikeRoutes(b){
+    const s=b.getSouth(),w=b.getWest(),n=b.getNorth(),e=b.getEast(),bbox=`(${s},${w},${n},${e})`;
+    const query=`[out:json][timeout:25];relation["route"="bicycle"]["network"~"^(icn|ncn)$"]${bbox};out geom ${BIKE_MAX_RELATIONS};`;
+    return (await overpass(query)).flatMap(el=>{
+      const t=el.tags||{}, label=t.ref?(t.name?t.name+" ("+t.ref+")":t.ref):(t.name||"Radfernweg");
+      return relationToLines(el,BIKE_MAX_MEMBERS,BIKE_MAX_PTS,{name:label});
     });
   }
-  // Wanderwege je nach Modus/Schalter/Zoom nachladen oder ausblenden (nicht
-  // Teil der Fehler-/Cache-Logik von fetchArea — rein optische Zusatzebene).
-  // Erst ab TRAILS_MIN_ZOOM laden: sonst wäre der Kartenausschnitt zu groß
-  // (zu viele Treffer, zu lange Ladezeit, spürbares Rendering-Ruckeln).
-  let trailsSeq=0;   // verhindert, dass eine langsamere/veraltete Antwort eine neuere überschreibt
+  function renderLines(layer,lines,color,dash){
+    layer.clearLayers();
+    lines.forEach(t=>{
+      const line=L.polyline(t.latlngs,{renderer:routeRenderer,color,weight:3.5,opacity:.8,dashArray:dash,lineCap:"round"});
+      line.bindPopup(esc(t.name)+(t.sac?" · "+esc(t.sac):""));
+      layer.addLayer(line);
+    });
+  }
+  // Wanderwege/Radfernwege je nach Modus/Schalter/Zoom nachladen oder
+  // ausblenden (nicht Teil der Fehler-/Cache-Logik von fetchArea — rein
+  // optische Zusatzebenen). Erst ab Mindestzoom laden: sonst wäre der
+  // Kartenausschnitt zu groß (zu viele Treffer, spürbares Rendering-Ruckeln).
+  let trailsSeq=0, bikeSeq=0;
   function updateTrails(b){
     const hint=$("trailsHint");
     if(mode==="entdecken"&&showTrails.checked){
       if(map.getZoom()<TRAILS_MIN_ZOOM){
-        trailLayer.clearLayers();
-        if(hint) hint.hidden=false;
-        trailsSeq++;
+        trailLayer.clearLayers(); if(hint) hint.hidden=false; trailsSeq++;
         return;
       }
       if(hint) hint.hidden=true;
       const seq=++trailsSeq;
-      fetchTrails(b).then(trails=>{ if(seq===trailsSeq) renderTrails(trails); }).catch(()=>{});
+      fetchTrails(b).then(trails=>{ if(seq===trailsSeq) renderLines(trailLayer,trails,MC.ochre,"1 7"); }).catch(()=>{});
     } else {
-      trailLayer.clearLayers();
+      trailLayer.clearLayers(); if(hint) hint.hidden=true; trailsSeq++;
+    }
+  }
+  function updateBikeRoutes(b){
+    const hint=$("bikeHint");
+    if(mode==="entdecken"&&showBikeRoutes.checked){
+      if(map.getZoom()<BIKE_MIN_ZOOM){
+        bikeLayer.clearLayers(); if(hint) hint.hidden=false; bikeSeq++;
+        return;
+      }
       if(hint) hint.hidden=true;
-      trailsSeq++;
+      const seq=++bikeSeq;
+      fetchBikeRoutes(b).then(routes=>{ if(seq===bikeSeq) renderLines(bikeLayer,routes,MC.gbl,"4 4"); }).catch(()=>{});
+    } else {
+      bikeLayer.clearLayers(); if(hint) hint.hidden=true; bikeSeq++;
     }
   }
   showTrails.addEventListener("change",()=>{ savePrefs(); updateTrails(map.getBounds()); });
+  showBikeRoutes.addEventListener("change",()=>{ savePrefs(); updateBikeRoutes(map.getBounds()); });
   // Thumbnail aus OSM-Tags: Wikimedia Commons (zuverlässig) oder direkter image-Link
   function poiImage(t){
     const wm=t.wikimedia_commons||"";
@@ -1244,7 +1286,7 @@
         AREA_CACHE.delete(ckey); AREA_CACHE.set(ckey,hit); // als zuletzt genutzt markieren
         results=hit.results; lastInfo=hit.info; render();
         if(mode==="entdecken") enrichAndPaint();
-        updateTrails(b);
+        updateTrails(b); updateBikeRoutes(b);
         return;
       }
       // r.length am jeweiligen Abfrage-Limit => vermutlich abgeschnitten (info.truncated)
@@ -1264,12 +1306,12 @@
       lastInfo=info;
       render();
       if(mode==="entdecken") enrichAndPaint();   // Bilder im Hintergrund nachtragen
-      updateTrails(b);
+      updateTrails(b); updateBikeRoutes(b);
       if(!info.errs.length) cacheStore(ckey,results,info);   // nur erfolgreiche Abrufe cachen
     }catch(e){
       info.errs.push("Fehler: "+(e&&e.message||e));
       lastInfo=info; render();
-      updateTrails(b);
+      updateTrails(b); updateBikeRoutes(b);
     }finally{
       // Buttons immer wieder freigeben — sonst bleibt „Suchen“/„Kartenbereich durchsuchen“ ausgegraut
       busy=false; goBtn.disabled=hereBtn.disabled=false;
