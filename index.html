@@ -59,6 +59,7 @@
   header{position:relative;padding:calc(12px + var(--safe-t)) 16px 10px;border-bottom:1px solid var(--line)}
   .brand{font-family:"Poppins",sans-serif;font-weight:700;font-size:21px;letter-spacing:-.02em}
   .brand .dot{color:var(--pine)}
+  .ver-badge{font-family:"Poppins",sans-serif;font-size:11px;font-weight:600;color:var(--muted);vertical-align:super;margin-left:2px}
   .tag{display:none;color:var(--muted);font-size:13px;margin-left:10px}
 
   .searchbar{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);position:relative}
@@ -232,7 +233,7 @@
 <body>
 <div class="app" data-view="list" data-mode="schlafen" id="app">
   <header>
-    <span class="brand">Abseits<span class="dot">.</span></span>
+    <span class="brand">Abseits<span class="dot">.</span><span class="ver-badge" id="verBadge"></span></span>
     <span class="tag" id="tagline">Unterkünfte, die ihren eigenen Weg gehen — Google + OpenStreetMap.</span>
     <button id="infoBtn" class="infobtn" aria-label="Über die App" title="Über Abseits">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>
@@ -383,7 +384,7 @@
         Alle Angaben <b>ohne Gewähr</b> — Preise, Öffnungszeiten und Verfügbarkeit bitte direkt beim Anbieter prüfen. Abseits speichert Merkliste &amp; Einstellungen nur lokal auf deinem Gerät und nutzt kein Tracking.
       </p>
 
-      <p class="ver">Abseits · Entdecken-Update (2026)</p>
+      <p class="ver" id="infoVer">Abseits</p>
     </div>
   </div>
 </div>
@@ -394,6 +395,11 @@
 <script>
 (function(){
   "use strict";
+
+  // Sichtbare Versionsnummer (Header-Badge + Info-Sheet) — bei jedem Deploy
+  // zusammen mit dem Service-Worker-Cache in sw.js bumpen (gleicher Stand),
+  // damit Rückmeldungen/Bugreports eindeutig einer Version zuzuordnen sind.
+  const APP_VERSION = "v31";
 
   // Optionaler Proxy (Cloudflare Worker): hält den Google-Key zentral.
   // Nach dem Deploy hier die Worker-URL eintragen, z. B.
@@ -529,6 +535,8 @@
   const onlyAccessible=$("onlyAccessible"), onlyWifi=$("onlyWifi"), onlyFree=$("onlyFree"), autoSearch=$("autoSearch"), autoNote=$("autoNote");
   const keyEl=$("key"), saveKey=$("saveKey"), contactNote=$("contactNote");
   const poiFree=$("poiFree"), poiNature=$("poiNature"), poiNamed=$("poiNamed"), showTrails=$("showTrails"), tagline=$("tagline");
+  $("verBadge").textContent=APP_VERSION;
+  const infoVerEl=$("infoVer"); if(infoVerEl) infoVerEl.textContent="Abseits · "+APP_VERSION;
 
   keyEl.value=localStorage.getItem("abseits_gkey")||"";
   saveKey.addEventListener("click",()=>{localStorage.setItem("abseits_gkey",keyEl.value.trim());saveKey.textContent="Gespeichert ✓";setTimeout(()=>saveKey.textContent="Speichern",1500);});
